@@ -1,8 +1,25 @@
 # DeepSeek Harness Reliability Governor
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+[![CI](https://github.com/chenjie1129/deepseek-harness-reliability-governor/actions/workflows/ci.yml/badge.svg)](https://github.com/chenjie1129/deepseek-harness-reliability-governor/actions/workflows/ci.yml)
+
+> **非官方社区项目，现招募公开 Beta 测试者。** 请在一次性本地工作区测试 3–5 个任务，并按 [15 分钟反馈协议](FEEDBACK.md) 提交反例。错误认证、正确结果被耗尽、错误放弃、修复导致退化、检查语义过脆和 Harness 兼容问题最有价值。
+
 这是一个可选启用的 DeepSeek Harness 组合包，把“模型说做完了”改成“确定性证据检查通过了”。
 
 它**不能让大模型本身变成确定性系统**。它提供的是更窄、可验证的保证：只要可靠性合约仍处于 active 状态，Agent 就不能自然结束；插件会检查证据、引导有限次数修复，最终只记录 `certified`、`exhausted` 或 `abstained`。每次检查和终态都写入持久会话日志，并带内容收据。
+
+![Reliability Governor 机制和已提交的无密钥基准结果](docs/assets/keyless-benchmark.svg)
+
+## 当前证据状态
+
+| 证据 | 当前结果 | 可以支持的结论 |
+| --- | --- | --- |
+| 无密钥 Harness AgentLoop 故障矩阵 | 9 个 Case × 10 次重复 × 2 组 = 180 次；机制门禁通过；governed 组 false completion 和 false certification 均为 0 | 在脚本化故障下，active 合约和生命周期能够执行已经声明的确定性检查。 |
+| 已预注册的供应商模型基准 | 20 个任务 × 5 次重复 × 3 组；尚未运行 | 目前不能声称真实模型质量、时延、成本或净效用已经改善。 |
+
+本项目主动寻找能够推翻当前设计的证据。独立 Oracle 测试方法和隐私要求见 [Beta 反馈协议](FEEDBACK.md)。
 
 ## 为什么需要它
 
@@ -75,7 +92,13 @@ npm run benchmark:live:plan
 
 `npm run check` 还会执行 180 次真实 Harness AgentLoop 的无密钥 A/B 故障注入基准，其中包含“普通成功工具不能替代可信代码 Profile”的对抗用例。该结果能证明门禁机制和生命周期符合预期，但不能证明自然语言模型本身变成确定性系统。
 
-20 个任务、每组 5 次重复的真实模型三臂预注册协议，会分别报告 false success、false exhaustion、false abstention、合约自编写代价、修复轨迹、独立 Oracle、成本与区间判定；详见 [docs/BENCHMARK.md](docs/BENCHMARK.md)。代码判定边界见 [docs/CODE_VERIFICATION.md](docs/CODE_VERIFICATION.md)。真实 Harness 安装验证步骤见 [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md)。
+宣传图由已提交的无密钥报告确定性生成：
+
+```sh
+npm run demo:render
+```
+
+20 个任务、每组 5 次重复的真实模型三臂预注册协议，会分别报告 false success、false exhaustion、false abstention、合约自编写代价、修复轨迹、独立 Oracle、成本与区间判定；详见 [docs/BENCHMARK.md](docs/BENCHMARK.md)。公开测试方法见 [FEEDBACK.md](FEEDBACK.md)。代码判定边界见 [docs/CODE_VERIFICATION.md](docs/CODE_VERIFICATION.md)。真实 Harness 安装验证步骤见 [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md)。
 
 ## 许可证
 

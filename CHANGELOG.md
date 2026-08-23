@@ -14,6 +14,8 @@
 - Preserve every check result per attempt and report exposure-conditioned, co-occurrence-aware per-kind attribution.
 - Add task-cluster bootstrap intervals, paired rescue/regression candidates, and live attempt-boundary oracle observations for repair-transition evidence.
 - Lock the manifest, runner, and analysis hashes before any provider-backed decision run.
+- Add a public beta feedback protocol and structured issue forms for false certification, false exhaustion, false abstention, repair regressions, and compatibility feedback.
+- Add a deterministic promotion visual generated from the checked-in mechanism report, plus release and official-community announcement drafts.
 
 ## 0.2.0
 

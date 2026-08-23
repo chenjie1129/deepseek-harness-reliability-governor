@@ -1,0 +1,52 @@
+name: False abstention
+description: Report a correct outcome that the governed agent declined to certify.
+title: "[false abstention]: "
+labels:
+  - false-abstention
+body:
+  - type: markdown
+    attributes:
+      value: |
+        False abstention means `oracle=pass` and `terminal=abstained`. It is reported separately from exhaustion because it does not burn the full repair budget or make the same product claim.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Classification checks
+      options:
+        - label: The final requested outcome independently passed even though the agent abstained.
+          required: true
+        - label: I removed secrets, private data, and sensitive transcript content.
+          required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions and environment
+      description: Plugin version, Harness version or commit, OS, profile, model/provider, and relevant configuration.
+    validations:
+      required: true
+  - type: textarea
+    id: task-contract
+    attributes:
+      label: Redacted task and contract
+      description: State whether the contract was model-authored or independently authored.
+    validations:
+      required: true
+  - type: textarea
+    id: oracle
+    attributes:
+      label: Independent evidence that the outcome passed
+    validations:
+      required: true
+  - type: textarea
+    id: attempts
+    attributes:
+      label: Check results and abstention reason
+      description: Include the full check-result set for each attempt and the redacted abstention reason.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+    validations:
+      required: true

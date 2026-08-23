@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title description">
+  <title id="title">DeepSeek Harness Reliability Governor mechanism benchmark</title>
+  <desc id="description">An evidence-gated completion flow and the checked-in 180-run keyless benchmark summary. The benchmark proves enforcement mechanics, not natural-language model quality.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#10263d"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#background)"/>
+  <circle cx="1130" cy="80" r="220" fill="#2b74ff" opacity="0.08"/>
+  <circle cx="110" cy="680" r="260" fill="#2dd4bf" opacity="0.06"/>
+
+  <text x="72" y="72" fill="#8ba3bd" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">UNOFFICIAL DEEPSEEK HARNESS PLUGIN · v0.3.0</text>
+  <text x="72" y="124" fill="#f8fbff" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="42" font-weight="700">A model saying “done” is not evidence.</text>
+  <text x="72" y="160" fill="#b9c9d9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22">Reliability Governor turns completion into an observable, bounded decision.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="208" width="1136" height="154" rx="20" fill="#0d1c2c" stroke="#29445e"/>
+    <rect x="100" y="247" width="250" height="76" rx="14" fill="#172b3e" stroke="#47708f"/>
+    <text x="225" y="280" text-anchor="middle" fill="#f8fbff" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="19" font-weight="650">Contract active</text>
+    <text x="225" y="305" text-anchor="middle" fill="#9eb4c9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15">declared observable outcome</text>
+    <path d="M350 285 H444" stroke="#5e83a4" stroke-width="3"/>
+    <path d="M434 277 L446 285 L434 293" fill="none" stroke="#5e83a4" stroke-width="3"/>
+    <rect x="446" y="247" width="300" height="76" rx="14" fill="#172b3e" stroke="#47708f"/>
+    <text x="596" y="280" text-anchor="middle" fill="#f8fbff" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="19" font-weight="650">Deterministic checks</text>
+    <text x="596" y="305" text-anchor="middle" fill="#9eb4c9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15">verify · repair within budget</text>
+    <path d="M746 285 H827" stroke="#5e83a4" stroke-width="3"/>
+    <path d="M817 277 L829 285 L817 293" fill="none" stroke="#5e83a4" stroke-width="3"/>
+    <rect x="829" y="234" width="112" height="48" rx="12" fill="#0f3d37" stroke="#2dd4bf"/>
+    <text x="885" y="264" text-anchor="middle" fill="#91f5df" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="650">certified</text>
+    <rect x="953" y="234" width="112" height="48" rx="12" fill="#432b21" stroke="#fb923c"/>
+    <text x="1009" y="264" text-anchor="middle" fill="#fdba74" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="650">exhausted</text>
+    <rect x="1077" y="234" width="103" height="48" rx="12" fill="#252d3d" stroke="#94a3b8"/>
+    <text x="1128" y="264" text-anchor="middle" fill="#d5dde8" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="650">abstained</text>
+    <text x="1005" y="313" text-anchor="middle" fill="#9eb4c9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15">durable attempt history + receipt</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="394" width="1136" height="224" rx="20" fill="#f7fbff"/>
+    <text x="104" y="438" fill="#17314a" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="21" font-weight="700">Checked-in keyless mechanism benchmark</text>
+    <text x="1176" y="438" text-anchor="end" fill="#55718a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">9 cases × 10 trials × 2 arms = 180 runs</text>
+
+    <text x="104" y="486" fill="#55718a" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15">BASELINE FALSE COMPLETION</text>
+    <text x="104" y="530" fill="#b45309" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="750">88.9%</text>
+    <text x="382" y="486" fill="#55718a" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15">GOVERNED FALSE COMPLETION</text>
+    <text x="382" y="530" fill="#047857" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="750">0.0%</text>
+    <text x="696" y="486" fill="#55718a" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15">FALSE CERTIFICATIONS</text>
+    <text x="696" y="530" fill="#047857" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="750">0</text>
+    <text x="958" y="486" fill="#55718a" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15">GATES</text>
+    <text x="958" y="530" fill="#047857" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="750">PASS</text>
+
+    <rect x="104" y="558" width="1072" height="38" rx="9" fill="#e8f0f7"/>
+    <text x="640" y="582" text-anchor="middle" fill="#36556f" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15" font-weight="600">Scripted faults prove gate enforcement only — no real-model quality claim until the pre-registered live benchmark runs.</text>
+  </g>
+
+  <text x="72" y="674" fill="#d6e4f0" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="650">Beta testers wanted:</text>
+  <text x="258" y="674" fill="#9eb4c9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="20">false certification · false exhaustion · false abstention · repair regression</text>
+</svg>

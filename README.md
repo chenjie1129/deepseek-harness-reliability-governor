@@ -1,8 +1,25 @@
 # DeepSeek Harness Reliability Governor
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+[![CI](https://github.com/chenjie1129/deepseek-harness-reliability-governor/actions/workflows/ci.yml/badge.svg)](https://github.com/chenjie1129/deepseek-harness-reliability-governor/actions/workflows/ci.yml)
+
+> **Unofficial community project. Public beta testers wanted.** Try three to five disposable local tasks and report counterexamples through the [15-minute feedback protocol](FEEDBACK.md). False certification, false exhaustion, false abstention, repair regression, brittle checks, and Harness compatibility reports are especially useful.
+
 An opt-in DeepSeek Harness bundle that changes completion from a model assertion into a deterministic evidence decision.
 
 It does **not** make an LLM deterministic. It makes a narrower promise: while a reliability contract is active, the agent is steered until observable checks pass, its bounded repair budget is exhausted, or it abstains. Every attempt and terminal outcome is recorded in the durable session log with a content receipt.
+
+![Reliability Governor mechanism and checked-in keyless benchmark](docs/assets/keyless-benchmark.svg)
+
+## Evidence status
+
+| Evidence | Current result | Claim allowed |
+| --- | --- | --- |
+| Keyless Harness AgentLoop fault matrix | 9 cases × 10 trials × 2 arms = 180 runs; mechanism gates pass; zero governed false completions and false certifications | The active contract and lifecycle enforce declared deterministic checks under scripted faults. |
+| Pre-registered provider-backed benchmark | 20 tasks × 5 trials × 3 arms planned; not run | No live-model quality, latency, cost, or net-utility claim yet. |
+
+The project is deliberately looking for evidence against its design. See [Beta feedback](FEEDBACK.md) for the independent-oracle protocol and privacy rules.
 
 ## Why this plugin exists
 
@@ -103,6 +120,12 @@ npm run check
 
 `npm run check` runs unit/composition tests, validates all evaluation manifests, builds strict ESM TypeScript, executes the 180-run keyless A/B benchmark, verifies the release contract, and audits the npm pack list. Follow [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) for the required clean-profile Harness test.
 
+To regenerate the promotion visual directly from the checked-in keyless report:
+
+```sh
+npm run demo:render
+```
+
 Benchmark commands:
 
 ```sh
@@ -121,7 +144,7 @@ The keyless benchmark proves the governor's enforcement mechanics using the real
 - v0.3 does not judge visual quality, semantic correctness beyond configured checks, remote state without authoritative evidence, or unknown side-effect outcomes.
 - Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.
 
-See [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
+See [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
 
 ## License
 

@@ -1,0 +1,72 @@
+name: False certification
+description: Report a run that was certified even though the independent oracle failed.
+title: "[false certification]: "
+labels:
+  - false-certification
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A false certification is the highest-priority reliability failure. Remove credentials, private source, customer data, and sensitive transcript content before submitting. Use a disposable workspace for reproduction.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Safety checks
+      options:
+        - label: I independently inspected the requested outcome; this is not based only on the model's final message or the governor's result.
+          required: true
+        - label: I removed secrets, private data, and sensitive transcript content.
+          required: true
+        - label: Any mutating reproduction uses a disposable workspace.
+          required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: harness-version
+    attributes:
+      label: Harness version or commit
+      placeholder: Package version or full Git commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Harness profile, model/provider, and relevant governor configuration.
+      placeholder: macOS; headless; model/provider; maxAttempts=3
+    validations:
+      required: true
+  - type: textarea
+    id: task-contract
+    attributes:
+      label: Redacted task and contract
+      description: Summarize the requested outcome and all checks. Do not paste secrets or proprietary content.
+    validations:
+      required: true
+  - type: textarea
+    id: independent-oracle
+    attributes:
+      label: Independent oracle failure
+      description: Explain exactly how you established that the requested outcome was incorrect despite certification.
+    validations:
+      required: true
+  - type: textarea
+    id: attempts
+    attributes:
+      label: Full check results by attempt
+      description: Include every check kind and pass/fail result for every attempt, plus the terminal receipt if safe.
+      placeholder: "attempt 1: file_exists=pass, json_equals=pass; terminal=certified"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Give deterministic setup and reproduction steps, or attach a small public repository.
+    validations:
+      required: true

@@ -1,0 +1,69 @@
+name: False exhaustion
+description: Report correct work that exhausted the repair budget because the contract kept rejecting it.
+title: "[false exhaustion]: "
+labels:
+  - false-exhaustion
+body:
+  - type: markdown
+    attributes:
+      value: |
+        False exhaustion means `oracle=pass` and `terminal=exhausted`. The full failing set on every attempt is essential; first-failure-only attribution is misleading.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Classification checks
+      options:
+        - label: The final requested outcome independently passed even though the governor exhausted.
+          required: true
+        - label: I removed secrets, private data, and sensitive transcript content.
+          required: true
+        - label: Any mutating reproduction uses a disposable workspace.
+          required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions and environment
+      description: Plugin version, Harness version or commit, OS, profile, model/provider, and maxAttempts.
+      placeholder: governor 0.3.0; Harness commit; Linux; headless; model/provider; maxAttempts=3
+    validations:
+      required: true
+  - type: textarea
+    id: task-contract
+    attributes:
+      label: Redacted task and contract
+      description: Include every declared check and why it was meant to represent success.
+    validations:
+      required: true
+  - type: textarea
+    id: oracle
+    attributes:
+      label: Independent evidence that the outcome passed
+      description: Explain how the final artifact or state was judged without relying on the contract.
+    validations:
+      required: true
+  - type: textarea
+    id: failing-sets
+    attributes:
+      label: Full failing-check set by attempt
+      placeholder: "attempt 1: file_contains, no_tool_errors; attempt 2: file_contains; attempt 3: file_contains"
+    validations:
+      required: true
+  - type: dropdown
+    id: likely-source
+    attributes:
+      label: Likely source
+      options:
+        - Unknown
+        - Model-authored contract
+        - Check semantics
+        - Repair policy
+        - Trusted code profile
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include setup, exact safe steps, and the smallest equivalent artifact you can share.
+    validations:
+      required: true

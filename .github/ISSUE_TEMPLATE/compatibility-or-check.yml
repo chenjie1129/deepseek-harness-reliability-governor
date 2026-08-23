@@ -1,0 +1,57 @@
+name: Compatibility or check feedback
+description: Report installation problems, Harness integration issues, brittle checks, or missing evidence primitives.
+title: "[beta feedback]: "
+labels:
+  - beta-feedback
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feedback category
+      options:
+        - Installation or profile activation
+        - Harness compatibility
+        - Session continuation
+        - Brittle check semantics
+        - Missing check kind
+        - Documentation or usability
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, private data, proprietary source, and sensitive transcript content.
+          required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions and environment
+      description: Plugin version, Harness version or commit, Node version, OS, profile, and installation source.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include redacted errors and whether the bundle appeared in `dsh.profile.bundles`.
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Evidence requirement or use case
+      description: For check requests, explain the independent observable that existing check kinds cannot express safely.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true

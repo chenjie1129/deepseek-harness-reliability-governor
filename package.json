@@ -5,6 +5,8 @@
   "keywords": [
     "deepseek-harness",
     "dsh-plugin",
+    "agent-reliability",
+    "llm-evaluation",
     "reliability",
     "verification",
     "agent"
@@ -43,6 +45,7 @@
     "cordis.patch.yml",
     "README.md",
     "README.zh-CN.md",
+    "FEEDBACK.md",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
     "SECURITY.md",
@@ -58,8 +61,10 @@
     "benchmark:keyless:check": "node scripts/run-keyless-benchmark.mjs --output ./.npm-cache/keyless-report.json",
     "benchmark:live": "node scripts/run-live-benchmark.mjs",
     "benchmark:live:plan": "node scripts/run-live-benchmark.mjs --plan",
+    "demo:render": "node scripts/render-keyless-demo.mjs",
+    "demo:check": "node scripts/render-keyless-demo.mjs --check",
     "release:verify": "node scripts/verify-release.mjs",
-    "check": "npm run test && npm run eval:validate && npm run build && npm run benchmark:keyless:check && npm run benchmark:live:plan && npm run release:verify && npm pack --dry-run --cache ./.npm-cache",
+    "check": "npm run test && npm run eval:validate && npm run build && npm run benchmark:keyless:check && npm run benchmark:live:plan && npm run demo:check && npm run release:verify && npm pack --dry-run --cache ./.npm-cache",
     "prepack": "npm run build"
   },
   "dsh": {

@@ -1,0 +1,59 @@
+name: Repair-induced regression
+description: Report a repair attempt that changed correct work into an incorrect final state.
+title: "[repair regression]: "
+labels:
+  - repair-regression
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This report is for gate-induced damage: the artifact was correct, a failed or mis-specified check triggered repair, and the repair made the result worse. Reproduce only in a disposable workspace.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Safety checks
+      options:
+        - label: I independently observed a correct state before repair and an incorrect state after repair.
+          required: true
+        - label: The reproduction is local and reversible; it performs no unknown external side effects.
+          required: true
+        - label: I removed secrets, private data, and sensitive transcript content.
+          required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions and environment
+      description: Plugin, Harness, OS, profile, model/provider, maxAttempts, and workspace protection used.
+    validations:
+      required: true
+  - type: dropdown
+    id: action-class
+    attributes:
+      label: Action class
+      options:
+        - workspace-reversible
+        - read-only
+        - external-or-non-idempotent (do not reproduce; describe only)
+    validations:
+      required: true
+  - type: textarea
+    id: timeline
+    attributes:
+      label: Oracle timeline
+      description: Describe the artifact before the failed check, after each repair, and at terminal state.
+      placeholder: "before attempt 1: pass; failed checks: ...; after repair 1: fail; terminal: exhausted; final oracle: fail"
+    validations:
+      required: true
+  - type: textarea
+    id: contract-attempts
+    attributes:
+      label: Redacted contract and full check results
+      description: Include every check result for every attempt, not only the check thought to have triggered repair.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction or safe description
+    validations:
+      required: true
