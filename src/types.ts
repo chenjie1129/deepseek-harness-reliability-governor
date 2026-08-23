@@ -1,10 +1,13 @@
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import type { JsonValue, SessionEvent } from '@deepseek-ai/dsh-session'
 
 /** A deterministic assertion the governor knows how to evaluate. */
 export type ReliabilityCheck =
   | { id: string; kind: 'file_exists'; path: string }
   | { id: string; kind: 'file_absent'; path: string }
   | { id: string; kind: 'file_contains'; path: string; text: string }
+  | { id: string; kind: 'file_not_contains'; path: string; text: string }
+  | { id: string; kind: 'file_equals'; path: string; text: string }
+  | { id: string; kind: 'json_equals'; path: string; pointer: string; value: JsonValue }
   | { id: string; kind: 'tool_succeeded'; tool: string; argumentsContain?: string; minCount?: number }
   | { id: string; kind: 'tool_not_called'; tool: string }
   | { id: string; kind: 'code_verification_succeeded'; profile: string; minCount?: number }

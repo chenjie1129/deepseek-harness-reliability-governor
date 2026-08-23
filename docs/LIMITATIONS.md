@@ -4,7 +4,7 @@
 
 - Identical text across runs.
 - Correctness of an objective that is incomplete or encoded by weak checks.
-- Semantic correctness beyond exact file literals, trusted code profiles, and authoritative tool outcomes.
+- Semantic correctness beyond configured exact/structured file checks, trusted code profiles, and authoritative tool outcomes.
 - Exactly-once side effects.
 - Truth of a remote action whose tool returned an unknown or failed outcome.
 - Protection against a malicious same-process plugin or compromised filesystem provider.
@@ -19,6 +19,8 @@ The system-prompt section teaches the model to open contracts for substantive ve
 
 The plugin does not expose raw verifier stdout/stderr. Agents must use ordinary diagnostic tools to understand failures, then rerun the immutable trusted profile.
 
+`no_tool_errors` describes the whole post-contract trajectory. A recoverable intermediate error therefore makes that check fail even if the final artifact is correct. It should be used only when an error-free trajectory is a real requirement. The live benchmark includes this false-rejection pressure explicitly.
+
 ## Contract adoption remains a policy gap
 
 `reliability_begin_code` prevents the model from omitting required profiles after it chooses the code contract. It cannot reliably infer that every arbitrary prompt is a coding task. A deployment requiring universal adoption still needs an outer task policy or user-authored contract trigger.
@@ -26,6 +28,10 @@ The plugin does not expose raw verifier stdout/stderr. Agents must use ordinary 
 ## Receipts are not attestations
 
 Receipts detect changes to the recorded payload. They are not signed, do not include an external timestamp authority, and inherit trust in the Harness session persistence and `ctx.fs` provider.
+
+## Repair reversibility is deployment policy
+
+The governor evaluates and steers but does not automatically invoke tools. Harness does not currently provide a universal trusted declaration that every arbitrary tool action is read-only, workspace-reversible, or external/non-idempotent. A model-authored label would not establish that fact. Use snapshots or worktrees for mutable local tasks and do not permit automatic repair of irreversible actions without an authoritative policy layer or human confirmation.
 
 ## Custom event compatibility
 

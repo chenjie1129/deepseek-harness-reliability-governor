@@ -59,6 +59,8 @@ File checks:
 4. read only regular UTF-8 text;
 5. cap content at `maxFileBytes`.
 
+`file_equals` compares the complete decoded UTF-8 text, `file_not_contains` proves literal exclusion, and `json_equals` resolves an RFC 6901-style JSON Pointer before comparing canonical JSON values. These avoid forcing an independently authored benchmark contract to approximate structured or exact outcomes with substring checks.
+
 Tool checks correlate `tool/call.callId` with `tool/result.message.source.callId`. Only events after `startedAtSeq` count, preventing stale pre-contract evidence from certifying later work.
 
 `code_verification_succeeded` counts only successful `reliability/code-verification` events for the named immutable profile after the contract boundary. An ordinary `bash`, test, or successful tool call cannot substitute.
@@ -74,6 +76,8 @@ The verifier requires full sandbox enforcement, scrubs ambient secrets through H
 `autoVerifyAtTurnStop` evaluates unresolved contracts whenever a turn would otherwise stop. A failing attempt steers exact failed-check evidence into one more step. The contract's `maxAttempts`, capped by deployment `maxAttempts`, prevents an unbounded loop.
 
 The governor never repeats a tool itself. This is intentional: generic automatic retry is unsafe for non-idempotent side effects. The model receives a policy not to repeat unknown-outcome actions and can inspect authoritative state or abstain.
+
+Harness currently exposes no authoritative, universal side-effect classification for arbitrary tools. The governor therefore cannot prove that a model-directed repair is reversible. Deployments must keep automatic repair inside disposable/snapshotted workspaces and require human confirmation or abstention for external, irreversible, or non-idempotent actions. The live benchmark records an explicit repair class per task; prompt-level classification is measured behavior, not a runtime safety proof.
 
 ## Why no LLM judge
 

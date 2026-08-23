@@ -44,7 +44,7 @@ export interface Config {
   maxAttempts?: number
   /** Maximum checks in one contract. */
   maxChecks?: number
-  /** Maximum UTF-8 bytes read for one file_contains check. */
+  /** Maximum UTF-8 bytes read for one content-bearing file check. */
   maxFileBytes?: number
   /** Verify an unresolved contract whenever the agent would otherwise stop. */
   autoVerifyAtTurnStop?: boolean
@@ -135,6 +135,25 @@ const CHECK_SCHEMA = {
     },
     {
       type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'file_not_contains', required: true },
+        path: { type: 'string', required: true }, text: { type: 'string', required: true },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'file_equals', required: true },
+        path: { type: 'string', required: true }, text: { type: 'string', required: true },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'json_equals', required: true },
+        path: { type: 'string', required: true }, pointer: { type: 'string', required: true },
+        value: { type: 'json', required: true },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
         id: { type: 'string', required: true }, kind: { type: 'string', const: 'tool_succeeded', required: true },
         tool: { type: 'string', required: true }, argumentsContain: { type: 'string' }, minCount: { type: 'integer' },
       },
@@ -168,6 +187,8 @@ For coding tasks, first load the reliability-code-verification skill. If require
 While a contract is active:
 - Do not say the task is complete until status is certified.
 - Repair only the failed checks, then call reliability_verify or let the turn-stop verifier run.
+- Use file_contains only for requirements that truly demand that literal. Prefer file_equals or json_equals when exact file or structured value semantics are intended.
+- Use no_tool_errors only when a clean error-free trajectory is itself required; a recovered intermediate error does not prove the final outcome failed.
 - Never repeat a non-idempotent external action merely because its outcome is unknown; inspect state or abstain instead.
 - If proof needs credentials, human judgment, or an unsupported check, call reliability_abstain and explain the limitation.
 

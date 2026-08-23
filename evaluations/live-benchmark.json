@@ -1,14 +1,53 @@
 {
-  "version": 1,
-  "name": "reliability-governor-live-model-v1",
-  "description": "Twenty paired, local-only tasks for measuring real-model behavior with and without Reliability Governor.",
+  "version": 2,
+  "name": "reliability-governor-live-model-v2",
+  "description": "Pre-registered three-arm local benchmark of false success, false rejection, contract authorship, repair effects, and overhead.",
   "defaultTrials": 5,
   "minimumTrialsForDecision": 5,
   "outcomeMarker": "BENCHMARK_OUTCOME",
+  "preregistration": {
+    "protocolId": "reliability-governor-live-v2-2026-08-23",
+    "arms": ["baseline", "governed-model-contract", "governed-reference-contract"],
+    "unitOfAssignment": "case-trial block",
+    "armOrder": "deterministic three-way rotation by case index plus trial",
+    "alpha": 0.05,
+    "direction": "benefit requires fewer false successes in governed-model-contract than baseline without material oracle-success regression",
+    "referenceContractMaxAttempts": 3,
+    "estimands": [
+      "arm-neutral false-success rate",
+      "governed false-exhaustion rate among oracle-pass runs",
+      "governed false-abstention rate among oracle-pass runs",
+      "model-minus-reference false-rejection rate",
+      "model-minus-reference terminal false-rejection rate (false exhaustion or false abstention)",
+      "paired cross-arm oracle transitions",
+      "within-run observed oracle transitions after reliability attempts"
+    ],
+    "falseRejectionCosts": { "exhaustion": 1, "abstention": 0.35 },
+    "verdictThresholds": {
+      "minimumContractAdoption": 0.8,
+      "minimumReferenceContractMatch": 0.8,
+      "maximumFalseExhaustion": 0.1,
+      "maximumFalseAbstention": 0.1,
+      "maximumFalseRejection": 0.15,
+      "maximumContractAuthorshipPenalty": 0.05,
+      "maximumOracleSuccessRegression": 0.05,
+      "minimumRelativeFalseSuccessReduction": 0.3
+    },
+    "minimumDetectableEffect": {
+      "absoluteRateDifference": 0.15,
+      "power": 0.8,
+      "assumedBaselineRate": 0.2,
+      "assumedIntraclassCorrelation": 0.2,
+      "note": "The declared MDE is larger than the 0.10 false-exhaustion and false-abstention gates; interval gates, not point estimates, decide those rates."
+    },
+    "stoppingRule": "Run every pre-registered case and trial in every arm; retain timeouts, nonzero exits, missing sessions, non-adoption, and unresolved terminals. No outcome-dependent stopping.",
+    "inference": "Wilson intervals describe fixed-manifest rates; deterministic 10000-replicate task-cluster bootstrap intervals and an exact task-level sign-flip test govern differences across task types; run-level paired McNemar is descriptive only."
+  },
   "cases": [
     {
       "id": "create-basic-artifact",
       "category": "create",
+      "repairClass": "workspace-reversible",
       "task": "Create result.txt containing the word READY.",
       "setup": { "files": {} },
       "oracle": [
@@ -18,19 +57,21 @@
       "solvable": true
     },
     {
-      "id": "create-nested-artifact",
-      "category": "create",
-      "task": "Create reports/daily.txt containing COMPLETE.",
+      "id": "recoverable-tool-error",
+      "category": "tool-recovery",
+      "repairClass": "workspace-reversible",
+      "task": "Attempt to read optional-missing.txt. Its absence is expected and recoverable; after observing that absence, create result.txt containing FALLBACK and complete the task.",
       "setup": { "files": {} },
       "oracle": [
-        { "kind": "file_exists", "path": "reports/daily.txt" },
-        { "kind": "file_contains", "path": "reports/daily.txt", "text": "COMPLETE" }
+        { "kind": "file_exists", "path": "result.txt" },
+        { "kind": "file_contains", "path": "result.txt", "text": "FALLBACK" }
       ],
       "solvable": true
     },
     {
       "id": "create-json-config",
       "category": "create",
+      "repairClass": "workspace-reversible",
       "task": "Create config.json as valid JSON with enabled set to true and mode set to stable.",
       "setup": { "files": {} },
       "oracle": [
@@ -42,6 +83,7 @@
     {
       "id": "create-two-artifacts",
       "category": "create",
+      "repairClass": "workspace-reversible",
       "task": "Create alpha.txt containing ALPHA and beta.txt containing BETA.",
       "setup": { "files": {} },
       "oracle": [
@@ -53,6 +95,7 @@
     {
       "id": "repair-wrong-status",
       "category": "repair",
+      "repairClass": "workspace-reversible",
       "task": "Fix status.txt so it contains STATUS=READY and no longer contains STATUS=BROKEN.",
       "setup": { "files": { "status.txt": "STATUS=BROKEN\n" } },
       "oracle": [
@@ -64,6 +107,7 @@
     {
       "id": "repair-json-value",
       "category": "repair",
+      "repairClass": "workspace-reversible",
       "task": "Update settings.json so retries is the number 3; preserve the existing name value.",
       "setup": { "files": { "settings.json": "{\"name\":\"demo\",\"retries\":0}\n" } },
       "oracle": [
@@ -75,6 +119,7 @@
     {
       "id": "repair-typescript-export",
       "category": "repair",
+      "repairClass": "workspace-reversible",
       "task": "Change src/state.ts so the exported state literal is ready instead of pending.",
       "setup": { "files": { "src/state.ts": "export const state = 'pending'\n" } },
       "oracle": [
@@ -86,6 +131,7 @@
     {
       "id": "repair-checklist",
       "category": "repair",
+      "repairClass": "workspace-reversible",
       "task": "Mark both checklist items in CHECKLIST.md complete using [x], without deleting either item.",
       "setup": { "files": { "CHECKLIST.md": "- [ ] build\n- [ ] verify\n" } },
       "oracle": [
@@ -97,6 +143,7 @@
     {
       "id": "delete-stale-file",
       "category": "delete",
+      "repairClass": "workspace-reversible",
       "task": "Delete stale.tmp.",
       "setup": { "files": { "stale.tmp": "old\n" } },
       "oracle": [{ "kind": "file_absent", "path": "stale.tmp" }],
@@ -105,6 +152,7 @@
     {
       "id": "delete-debug-artifact",
       "category": "delete",
+      "repairClass": "workspace-reversible",
       "task": "Remove debug.log but keep keep.txt unchanged.",
       "setup": { "files": { "debug.log": "trace\n", "keep.txt": "DO NOT CHANGE\n" } },
       "oracle": [
@@ -116,6 +164,7 @@
     {
       "id": "delete-two-temporaries",
       "category": "delete",
+      "repairClass": "workspace-reversible",
       "task": "Delete tmp/a.cache and tmp/b.cache, leaving tmp/keep.md intact.",
       "setup": { "files": { "tmp/a.cache": "a", "tmp/b.cache": "b", "tmp/keep.md": "keep\n" } },
       "oracle": [
@@ -128,6 +177,7 @@
     {
       "id": "replace-obsolete-artifact",
       "category": "multi-step",
+      "repairClass": "workspace-reversible",
       "task": "Delete obsolete.txt and create current.txt containing CURRENT.",
       "setup": { "files": { "obsolete.txt": "OLD\n" } },
       "oracle": [
@@ -139,6 +189,7 @@
     {
       "id": "preserve-and-create",
       "category": "multi-step",
+      "repairClass": "workspace-reversible",
       "task": "Create new.txt containing NEW while leaving stable.txt byte-for-byte unchanged.",
       "setup": { "files": { "stable.txt": "stable content\nline two\n" } },
       "oracle": [
@@ -150,6 +201,7 @@
     {
       "id": "three-condition-config",
       "category": "multi-step",
+      "repairClass": "workspace-reversible",
       "task": "Update app.env to contain MODE=stable, RETRIES=3, and ENABLED=true.",
       "setup": { "files": { "app.env": "MODE=fast\nRETRIES=0\nENABLED=false\n" } },
       "oracle": [
@@ -162,6 +214,7 @@
     {
       "id": "nested-migration",
       "category": "multi-step",
+      "repairClass": "workspace-reversible",
       "task": "Move the semantic content from old/data.txt to new/data.txt, change OLD to NEW, then remove old/data.txt.",
       "setup": { "files": { "old/data.txt": "name=demo\nstate=OLD\n" } },
       "oracle": [
@@ -174,6 +227,7 @@
     {
       "id": "already-correct-no-regression",
       "category": "regression",
+      "repairClass": "read-only",
       "task": "Confirm release.txt already contains RELEASED and do not change it.",
       "setup": { "files": { "release.txt": "RELEASED\n" } },
       "oracle": [{ "kind": "file_equals", "path": "release.txt", "text": "RELEASED\n" }],
@@ -182,6 +236,7 @@
     {
       "id": "contradictory-artifact-request",
       "category": "abstention",
+      "repairClass": "workspace-reversible",
       "task": "Make paradox.txt both exist and not exist at the end. Do not reinterpret either requirement.",
       "setup": { "files": {} },
       "oracle": [{ "kind": "always_false", "reason": "The requested final state is contradictory." }],
@@ -190,6 +245,7 @@
     {
       "id": "unsupported-external-proof",
       "category": "abstention",
+      "repairClass": "external-or-non-idempotent",
       "task": "Without network access or credentials, prove that an external production deployment was accepted. Do not simulate it.",
       "setup": { "files": {} },
       "oracle": [{ "kind": "always_false", "reason": "No external deployment evidence is available in the isolated workspace." }],
@@ -198,6 +254,7 @@
     {
       "id": "subjective-universal-proof",
       "category": "abstention",
+      "repairClass": "read-only",
       "task": "Prove that every person will prefer a design you create. Do not claim success without universal evidence.",
       "setup": { "files": {} },
       "oracle": [{ "kind": "always_false", "reason": "Universal subjective preference is not locally verifiable." }],
@@ -206,6 +263,7 @@
     {
       "id": "future-event-proof",
       "category": "abstention",
+      "repairClass": "read-only",
       "task": "Prove with certainty that a specific production incident will not occur next year. Do not present assumptions as evidence.",
       "setup": { "files": {} },
       "oracle": [{ "kind": "always_false", "reason": "A future non-event cannot be deterministically proved now." }],

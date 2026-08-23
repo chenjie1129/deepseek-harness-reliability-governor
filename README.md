@@ -21,19 +21,24 @@ Harness already has goal and iterative workflow plugins, but their current docum
 - `reliability_code_verify` — execute one immutable profile through Harness-managed subprocess and sandbox services.
 - `agent/turn-stopping` enforcement — verify before an active contract is allowed to settle, then steer a bounded repair or truthfully report certification/exhaustion.
 
-Supported checks in v0.2:
+Supported checks in v0.3:
 
 | Check | Pass condition |
 | --- | --- |
 | `file_exists` | A workspace-relative path resolves to a regular file. |
 | `file_absent` | No path entry exists at the workspace-relative path. |
 | `file_contains` | A bounded regular text file contains an exact literal. |
+| `file_not_contains` | A bounded regular text file excludes an exact literal. |
+| `file_equals` | A bounded regular text file exactly matches expected UTF-8 text. |
+| `json_equals` | A JSON Pointer resolves to the exact predeclared JSON value. |
 | `tool_succeeded` | The session log contains the required matching tool call and a correlated non-error result after the contract began. |
 | `tool_not_called` | The named tool was not called after the contract began. |
 | `code_verification_succeeded` | A named deployment-configured verifier profile produced a fresh successful durable result. |
 | `no_tool_errors` | No model-facing tool result after the contract began is an error. |
 
 File checks are read-only through Harness `ctx.fs`. Trusted code profiles receive exact deployment-authored argv and execute only through Harness `ctx.subprocess`, `ctx.sandbox`, and `ctx.sandboxPolicy`; the model supplies only a profile ID. The plugin never calls an LLM judge, retries a provider, or repeats a business action.
+
+`file_contains` and `no_tool_errors` intentionally have narrow meanings. The policy warns the model not to use an exact literal for equivalent-output requirements and not to treat a recovered intermediate tool error as evidence that the final result failed. The live benchmark includes JSON-format equivalence and a recoverable-tool-error task to measure those authorship mistakes rather than assume them away.
 
 ## Install
 
@@ -44,7 +49,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.2.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.3.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -103,14 +108,14 @@ npm run benchmark:keyless
 npm run benchmark:live:plan
 ```
 
-The keyless benchmark proves the governor's enforcement mechanics using the real Harness agent loop and an independent oracle. It does not prove that a natural-language model became deterministic. The provider-backed 20-task paired protocol, statistical gates, cost confirmation, and interpretation rules are documented in [docs/BENCHMARK.md](docs/BENCHMARK.md).
+The keyless benchmark proves the governor's enforcement mechanics using the real Harness agent loop and an independent oracle. It does not prove that a natural-language model became deterministic. The provider-backed, pre-registered 20-task three-arm protocol measures false success, false exhaustion, false abstention, contract-authorship cost, repair transitions, overhead, and uncertainty; see [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Boundaries
 
 - A receipt hashes the recorded contract/outcome; it is not a signature and does not prove the external world independently.
 - The model still chooses whether a task needs a contract and which checks express success. A bad contract can certify the wrong thing.
 - Deterministic checks improve outcome reliability, not wording consistency.
-- v0.2 does not judge visual quality, semantic correctness beyond configured checks, remote state without authoritative evidence, or unknown side-effect outcomes.
+- v0.3 does not judge visual quality, semantic correctness beyond configured checks, remote state without authoritative evidence, or unknown side-effect outcomes.
 - Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.
 
 See [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).

@@ -68,11 +68,19 @@ function assertCheck(check: ReliabilityCheck): void {
     }
     if (check.profile.length > 128) throw new Error(`${check.id}: profile must be at most 128 characters`)
   }
-  if (check.kind === 'file_contains' && check.text.length === 0) {
-    throw new Error(`${check.id}: file_contains text must be non-empty`)
+  if ((check.kind === 'file_contains' || check.kind === 'file_not_contains') && check.text.length === 0) {
+    throw new Error(`${check.id}: ${check.kind} text must be non-empty`)
   }
-  if (check.kind === 'file_contains' && check.text.length > 4_096) {
-    throw new Error(`${check.id}: file_contains text must be at most 4096 characters`)
+  if ((check.kind === 'file_contains' || check.kind === 'file_not_contains' || check.kind === 'file_equals')
+    && check.text.length > 4_096) {
+    throw new Error(`${check.id}: ${check.kind} text must be at most 4096 characters`)
+  }
+  if (check.kind === 'json_equals') {
+    if (check.pointer !== '' && !check.pointer.startsWith('/')) {
+      throw new Error(`${check.id}: JSON pointer must be empty or start with /`)
+    }
+    if (check.pointer.length > 2_048) throw new Error(`${check.id}: JSON pointer must be at most 2048 characters`)
+    canonicalJson(check.value)
   }
   if (check.kind === 'tool_succeeded' && check.argumentsContain === '') {
     throw new Error(`${check.id}: argumentsContain must be non-empty when supplied`)
@@ -171,7 +179,9 @@ function noToolErrors(events: readonly SessionEvent[], check: Extract<Reliabilit
 }
 
 async function fileResult(
-  check: Extract<ReliabilityCheck, { kind: 'file_exists' | 'file_absent' | 'file_contains' }>,
+  check: Extract<ReliabilityCheck, {
+    kind: 'file_exists' | 'file_absent' | 'file_contains' | 'file_not_contains' | 'file_equals' | 'json_equals'
+  }>,
   env: VerificationEnvironment,
 ): Promise<ReliabilityCheckResult> {
   const cwd = env.session.header.cwd
@@ -204,8 +214,31 @@ async function fileResult(
     return result(check, false, 'file is not valid UTF-8 text')
   }
   if (content.includes('\0')) return result(check, false, 'file contains binary NUL bytes')
-  const passed = content.includes(check.text)
-  return result(check, passed, passed ? 'required literal is present' : 'required literal is absent')
+  if (check.kind === 'file_contains') {
+    const passed = content.includes(check.text)
+    return result(check, passed, passed ? 'required literal is present' : 'required literal is absent')
+  }
+  if (check.kind === 'file_not_contains') {
+    const passed = !content.includes(check.text)
+    return result(check, passed, passed ? 'forbidden literal is absent' : 'forbidden literal is present')
+  }
+  if (check.kind === 'file_equals') {
+    const passed = content === check.text
+    return result(check, passed, passed ? 'file bytes match expected UTF-8 text' : 'file content differs')
+  }
+  try {
+    const parsed = JSON.parse(content) as unknown
+    const actual = check.pointer === '' ? parsed : check.pointer.slice(1).split('/').reduce<unknown>((current, raw) => {
+      const key = raw.replaceAll('~1', '/').replaceAll('~0', '~')
+      return current !== null && typeof current === 'object'
+        ? (current as Record<string, unknown>)[key]
+        : undefined
+    }, parsed)
+    const passed = actual !== undefined && canonicalJson(actual) === canonicalJson(check.value)
+    return result(check, passed, passed ? 'JSON value matches' : `JSON value differs at ${check.pointer || '<root>'}`)
+  } catch (error: unknown) {
+    return result(check, false, `invalid JSON evidence: ${error instanceof Error ? error.message : 'unknown error'}`)
+  }
 }
 
 /** Evaluate every contract check in declaration order. Nothing here mutates the world. */
@@ -218,7 +251,8 @@ export async function evaluateContract(
   for (const check of contract.checks) {
     env.signal?.throwIfAborted()
     try {
-      if (check.kind === 'file_exists' || check.kind === 'file_absent' || check.kind === 'file_contains') {
+      if (check.kind === 'file_exists' || check.kind === 'file_absent' || check.kind === 'file_contains'
+        || check.kind === 'file_not_contains' || check.kind === 'file_equals' || check.kind === 'json_equals') {
         results.push(await fileResult(check, env))
       } else if (check.kind === 'tool_succeeded') {
         results.push(callSucceeded(events, check))

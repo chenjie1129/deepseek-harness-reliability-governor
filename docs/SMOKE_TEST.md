@@ -22,7 +22,7 @@ Create an isolated Harness home and install the exact tarball into a fresh profi
 ```sh
 export DSH_SMOKE_HOME="$(mktemp -d)"
 export DSH_HOME="$DSH_SMOKE_HOME"
-dsh plugin --profile reliability-smoke add ./chenjie1129-dsh-reliability-governor-plugin-0.2.0.tgz
+dsh plugin --profile reliability-smoke add ./chenjie1129-dsh-reliability-governor-plugin-0.3.0.tgz
 export GOVERNOR_PACKAGE="$DSH_HOME/profiles/reliability-smoke/node_modules/@chenjie1129/dsh-reliability-governor-plugin"
 dsh --profile reliability-smoke \
   --patch "$GOVERNOR_PACKAGE/examples/code-verification.patch.yml" \

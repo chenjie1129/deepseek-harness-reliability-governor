@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Add exact-negative, exact-file, and JSON Pointer equality checks for less brittle artifact contracts.
+- Replace the live A/B protocol with a pre-registered three-arm benchmark: baseline, model-authored contract, and independently authored reference contract.
+- Make arm-neutral and governed terminal contingency tables the primitive report outputs.
+- Report false exhaustion and false abstention separately, with explicit cost weights and interval-based gates.
+- Preserve every check result per attempt and report exposure-conditioned, co-occurrence-aware per-kind attribution.
+- Add task-cluster bootstrap intervals, paired rescue/regression candidates, and live attempt-boundary oracle observations for repair-transition evidence.
+- Lock the manifest, runner, and analysis hashes before any provider-backed decision run.
+
 ## 0.2.0
 
 - Add bundled `reliability-code-verification` workflow guidance through the Harness skill registry.

@@ -1,13 +1,13 @@
 # Reliability benchmark
 
-This project separates two claims that require different evidence:
+This project separates two claims:
 
-1. **Enforcement claim:** when a contract exists, the plugin blocks unsupported completion, performs bounded verification/repair, and never certifies a failing deterministic oracle.
-2. **Model-behavior claim:** on a named real model and task distribution, enabling the plugin reduces false completion without unacceptable quality, latency, token, or tool-call regressions.
+1. **Enforcement:** an active contract blocks unsupported completion, evaluates every check, bounds repair, and never certifies a failing deterministic oracle in the scripted fault matrix.
+2. **Model behavior:** on a named model and task distribution, the complete governed product reduces oracle-failing success reports without unacceptable false rejection, regression, latency, token, or tool-call cost.
 
-The checked-in keyless benchmark tests claim 1. The live paired benchmark is required for claim 2. A passing keyless result must not be described as proof that an LLM became deterministic.
+The checked-in keyless benchmark tests the first claim. Only the pre-registered provider-backed benchmark can test the second. Neither makes an LLM deterministic.
 
-## Current keyless result
+## Current keyless evidence
 
 Run:
 
@@ -15,105 +15,138 @@ Run:
 npm run benchmark:keyless
 ```
 
-The runner executes the real `@deepseek-ai/dsh-agent-loop`, not a direct call to plugin internals. Nine fault classes run ten times in both arms (180 agent-loop runs):
+Nine fault classes run ten times in baseline and governed arms through the real `@deepseek-ai/dsh-agent-loop` (180 runs). An out-of-band in-memory oracle, not the governor, decides ground truth. The checked-in [latest-keyless-report.json](../evaluations/latest-keyless-report.json) must pass its lifecycle, false-completion, and false-certification gates.
 
-- missing file;
-- wrong literal content;
-- stale file that must be removed;
-- already-correct fast path;
-- failed tool followed by recovery;
-- forbidden irreversible tool use;
-- stale pre-contract evidence;
-- unsupported human judgment;
-- an ordinary successful tool attempting to substitute for an immutable trusted code profile.
+This proves that the hook and state machine enforce a valid contract. Scripted trials do not estimate model sampling variance, false exhaustion from model-authored contracts, or net product utility.
 
-The model adapter and injected fault are identical in each pair. The governed arm differs only by mounting Reliability Governor. An out-of-band memory filesystem and business-tool counter decide ground truth, so the plugin cannot grade itself.
+## Pre-registered live protocol
 
-The versioned result is [latest-keyless-report.json](../evaluations/latest-keyless-report.json). Its hard gates require:
+[live-benchmark.json](../evaluations/live-benchmark.json) fixes 20 safe local tasks, five trials, assignment order, estimands, direction, alpha, effect thresholds, false-rejection cost weights, MDE assumptions, and stopping rules. [live-benchmark.preregistered.json](../evaluations/live-benchmark.preregistered.json) locks SHA-256 hashes for the task manifest, runner, and analysis before a decision run.
 
-- at least 10 trials per arm and case;
-- governed false-completion rate of 0;
-- governed false-certification rate of 0;
-- at least 80% reduction in false completion versus baseline;
-- 100% match to the expected lifecycle for both arms.
+Every case/trial block has three arms:
 
-Repeated scripted trials detect session-state leakage and lifecycle regressions. They do not measure model sampling variance.
+1. `baseline`: clean Harness `headless` profile, with a completion marker but no governor.
+2. `governed-model-contract`: otherwise identical profile with the exact packed plugin; the model decides whether and how to author a contract.
+3. `governed-reference-contract`: same governed profile, but the benchmark supplies an independently authored contract derived from the pre-registered oracle and requires the model to open it exactly.
 
-## Live-model benchmark
+Reference-contract fidelity is measured from the durable contract event. A missing or modified contract is not silently accepted. Execution order uses a fixed three-way rotation within every block. Each run gets a new workspace and persisted Harness session. No outcome may be discarded.
 
-The live suite contains 20 safe, local-only cases: creation, correction, deletion, multi-step preservation, no-regression, contradictions, unavailable external proof, subjective judgment, and future uncertainty. Every run uses a fresh workspace and a fresh persisted Harness session.
+The full default is 20 cases × 5 trials × 3 arms = **300 agent runs**. Provider cost depends on the configured model.
 
-The two arms are:
-
-- **baseline:** a clean `headless` profile;
-- **governed:** an independently initialized, otherwise identical `headless` profile with the exact packed plugin installed.
-
-Within every case/trial pair, execution order alternates to reduce time-order bias. Filesystem/JSON checks outside Harness determine task truth. The runner reads persisted session evidence to measure model calls, input/output tokens, tool calls, contract adoption, terminal state, and receipts. Raw transcripts are excluded by default; only a hash is stored unless `--include-transcripts` is explicitly used.
-
-### Plan before spending
+### Plan without spending
 
 ```sh
 npm run benchmark:live:plan
 ```
 
-The full default is 20 cases × 5 trials × 2 arms = **200 agent runs**. Provider cost depends on the configured model. Review its current prices before authorizing the run.
+The plan verifies all pre-registration hashes. Any change to the manifest, runner, or analysis invalidates the lock and requires a new reviewed pre-registration before live execution.
 
 For a non-decision pilot:
 
 ```sh
-# Securely export DEEPSEEK_API_KEY in the current shell first.
+# Export DEEPSEEK_API_KEY securely in this shell first.
 npm run benchmark:live -- \
   --confirm-cost \
   --max-cases 2 \
   --trials 1 \
   --harness-root /absolute/path/to/deepseek-harness \
-  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.2.0.tgz \
+  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.3.0.tgz \
   --output /absolute/path/to/pilot-report.json
 ```
 
-For a decision-quality run, omit `--max-cases` and use at least five trials:
+A pilot is always `INCONCLUSIVE`. For a decision run, omit `--max-cases` and use at least five trials. The runner refuses a decision-quality execution unless the tracked tree is clean and its current commit equals the configured upstream commit, which makes the pre-registration publication check executable rather than documentary. It also refuses model calls without `--confirm-cost` and a process-level key, never prints the key, hashes the plugin artifact, and deletes temporary profiles/workspaces unless `--keep` is supplied.
 
-```sh
-# Reuse the securely exported DEEPSEEK_API_KEY.
-npm run benchmark:live -- \
-  --confirm-cost \
-  --trials 5 \
-  --harness-root /absolute/path/to/deepseek-harness \
-  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.2.0.tgz
+## Auditable outcome primitives
+
+The report first emits an arm-neutral table for every arm:
+
+| System result | Oracle pass | Oracle fail |
+| --- | --- | --- |
+| reports success | true success | **false success** |
+| does not report success | **false rejection** | true rejection |
+
+“Reports success” means the model's final `COMPLETE` marker in every arm. This catches non-adoption and a model that claims completion despite `exhausted` or `abstained`; certification remains an independent governed decision. Baseline cannot “false-certify” because it has no certificate. The common benefit estimand is the reduction in false success.
+
+For contract-adopted governed runs, a second table crosses terminal state with the oracle:
+
+| Terminal | Oracle pass | Oracle fail |
+| --- | --- | --- |
+| `certified` | true certification | **false certification** |
+| `exhausted` | **false exhaustion** | true exhaustion |
+| `abstained` | **false abstention** | true abstention |
+| unresolved | missed decision | unresolved failure |
+
+`no_contract`, unresolved active state, timeout, nonzero exit, and missing session are reported separately. The final completion marker remains orthogonal, so an exhausted run that still claims `COMPLETE` remains visible.
+
+False-exhaustion and false-abstention rates use all oracle-pass runs as the intention-to-treat denominator and also report the contract-adopted oracle-pass denominator for contract-quality diagnosis. Their union is reported as terminal false rejection, but both components remain visible and are gated separately. The pre-registered cost display weights exhaustion at `1.0` and abstention at `0.35`.
+
+## Contract authorship and repair effects
+
+The third arm estimates the self-authorship penalty:
+
+```text
+delta_contract = false-rejection(model-contract) - false-rejection(reference-contract)
 ```
 
-The runner refuses live execution without both `--confirm-cost` and a process-level `DEEPSEEK_API_KEY`. It creates isolated temporary `DSH_HOME` directories, never prints the key, and removes the temporary profiles/workspaces unless `--keep` is supplied.
+The report computes this for both arm-neutral false rejection and terminal false rejection (`false exhaustion ∪ false abstention`). A terminal penalty points toward contract synthesis or human-confirmed reference contracts; a product-only penalty points toward adoption or final-reporting compliance. A high reference-arm terminal rejection rate points instead toward check semantics or repair policy. These are block-paired product estimands, not structural claims that authorship acts independently of check coverage or repair.
 
-## Metrics
+Paired baseline/governed oracle disagreements are reported as **rescue candidates** and **regression candidates**. Stochastic runs do not establish individual causality. For stronger within-run evidence, the runner watches durable `reliability/attempt` events and evaluates the independent oracle at each observed attempt boundary:
 
-| Metric | Definition |
-| --- | --- |
-| Oracle success | Independent checks all pass after the run. |
-| False completion | Final marker says `COMPLETE`, but the independent oracle fails. |
-| False certification | Plugin terminal state is `certified`, but the independent oracle fails. This is the critical safety metric. |
-| Correct non-completion | Oracle fails and the final marker says `NOT_COMPLETE`. |
-| Behavior accuracy | Solvable case: oracle passes and completion is claimed. Unsolvable case: completion is not claimed. |
-| Stable-correct case | Every repetition for that case has correct behavior. |
-| Contract adoption | A governed session records `reliability/contract`. Low adoption means prompt policy, not verifier correctness, is limiting impact. |
-| Overhead | Difference in duration, model calls, input/output tokens, and tool calls between arms. |
+```text
+first failed attempt (before repair) -> later attempt(s) -> terminal oracle
+```
 
-Rates include 95% Wilson intervals. False-completion changes use the paired exact McNemar test over matched case/trial pairs.
+Only a live snapshot following a failed, not-yet-exhausted attempt can begin an attributed repair transition. If several attempts appear between observer polls, earlier ones are labeled `coalesced_backfill`; attempts first seen after process exit are `terminal_backfill`. Both are retained but excluded from pre-repair attribution. Post-certification regressions are counted separately. This observer narrows the causal gap; it is not equivalent to deterministic trajectory replay.
 
-## Verdict rules
+## Per-check attribution
 
-The live report returns one of three verdicts:
+Every `reliability/attempt` already stores the full ordered check-result set. The live report preserves it and aggregates, per check kind:
 
-- `PROVEN`: at least five trials; no operational failures; no governed false certification; at least 80% contract adoption; no material oracle-success or stable-correct-case regression; at least 30% false-completion reduction; and paired exact McNemar `p <= 0.05` in the beneficial direction.
-- `HARMFUL`: false completion increases, any false certification occurs, or oracle success drops by more than five percentage points.
-- `INCONCLUSIVE`: neither threshold is met. This is the correct result when the baseline has too few failures, adoption is low, or the sample is underpowered.
+- attempt exposure and failure counts;
+- failure rate conditional on exposure;
+- exposed and failed run counts;
+- unique-failure attempts;
+- co-occurrence with false exhaustion, false abstention, and their union.
 
-`PROVEN` is deliberately narrow: it applies only to the manifest version, provider/model configuration, Harness version, plugin artifact, and sampling protocol in that report. It is not a universal proof for every task or future model.
+No “first failed check” attribution is used. If several checks fail together, their contributions are reported as co-occurrence rather than causal shares.
+
+## Inference and power
+
+Wilson 95% intervals describe rates on this fixed manifest. Repeated trials share a task and are not independent task samples, so arm differences also receive deterministic 10,000-replicate task-cluster bootstrap intervals. An exact task-level sign-flip test, not the run-level McNemar result, controls the verdict's false-success direction. Run-level paired McNemar remains descriptive for the fixed execution matrix.
+
+The pre-registered MDE is a 0.15 absolute rate difference under the declared assumptions. It is larger than the 0.10 false-exhaustion and false-abstention thresholds. This limitation is published before data collection; interval bounds, not favorable point estimates, must satisfy those gates. Broader claims require more distinct task types, not merely more repeats of the same 20 tasks.
+
+## Verdict
+
+`PROVEN` requires all pre-registered checks:
+
+- pre-registration hashes committed and published at the configured upstream;
+- complete 20-case, five-trial, three-arm execution and no operational failure;
+- no false certification in either governed arm;
+- model-contract adoption and reference-contract fidelity Wilson lower bounds at least 0.80;
+- model-contract false-exhaustion and false-abstention Wilson upper bounds at most 0.10 separately;
+- task-cluster oracle-success difference lower bound no worse than -0.05;
+- at least 30% relative false-success reduction;
+- a task-cluster false-success benefit interval above zero and exact task-level sign-flip `p <= 0.05` in the beneficial direction.
+
+`HARMFUL` is returned for any false certification, increased false success, a confidently material oracle-success regression, or a false-exhaustion point rate over its gate. Everything else is `INCONCLUSIVE`.
+
+The report also emits an independent contract-authorship finding. It does not turn an inconclusive product verdict into proof.
+
+## Repair safety boundary
+
+Every task declares one action class:
+
+- `read-only`;
+- `workspace-reversible`;
+- `external-or-non-idempotent`.
+
+The live manifest is local and isolated. Prompts prohibit external actions and automatic retry for the external/non-idempotent class. The runtime governor does not yet possess authoritative tool-side-effect metadata and therefore cannot itself prove reversibility or create a rollback. Outside a disposable workspace, deployment policy must provide snapshots/worktrees for reversible mutation and require abstention or human confirmation for irreversible actions.
 
 ## Before accepting a result
 
-- Keep the task manifest and both prompts fixed before looking at outcomes.
-- Use the same provider/model configuration in both arms.
-- Do not discard failed or timed-out runs.
-- Inspect all false certifications and a random sample of successes.
-- Report the full JSON, including overhead and inconclusive outcomes.
-- Re-run after changing the model, Harness, plugin, system prompt, tool set, or task distribution.
+- Push the pre-registration commit or immutable tag before the first provider-backed decision run.
+- Keep prompts, tasks, hashes, model/provider settings, sampling parameters, plugin artifact, Harness commit, and arm order fixed.
+- Retain non-adoption, timeouts, failures, and unresolved states.
+- Inspect every false certification and false rejection, plus a random sample of successes.
+- Publish the full JSON and rerun after changing any material component.

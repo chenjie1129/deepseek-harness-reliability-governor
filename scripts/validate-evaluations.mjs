@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 
@@ -56,15 +57,18 @@ for (const testCase of keyless.cases) {
   if (!keylessOracleKinds.has(testCase.oracle?.kind)) throw new Error(`${testCase.id} has unsupported keyless oracle`)
 }
 
-const live = JSON.parse(await readFile(evaluationUrl('live-benchmark.json'), 'utf8'))
-if (live.version !== 1) throw new Error('live benchmark version must be 1')
+const liveUrl = evaluationUrl('live-benchmark.json')
+const live = JSON.parse(await readFile(liveUrl, 'utf8'))
+if (live.version !== 2) throw new Error('live benchmark version must be 2')
 if (!Array.isArray(live.cases) || live.cases.length !== 20) throw new Error('live benchmark must contain exactly 20 cases')
 if (!Number.isSafeInteger(live.defaultTrials) || live.defaultTrials < 5) throw new Error('live benchmark needs at least 5 default trials')
 requireUniqueIds(live.cases, 'live benchmark')
+const repairClasses = new Set(['read-only', 'workspace-reversible', 'external-or-non-idempotent'])
 const oracleKinds = new Set(['file_exists', 'file_absent', 'file_contains', 'file_not_contains', 'file_equals', 'json_equals', 'always_false'])
 for (const testCase of live.cases) {
   if (typeof testCase.task !== 'string' || testCase.task.length < 10) throw new Error(`${testCase.id} needs a concrete task`)
   if (typeof testCase.solvable !== 'boolean') throw new Error(`${testCase.id} needs a solvable flag`)
+  if (!repairClasses.has(testCase.repairClass)) throw new Error(`${testCase.id} needs a valid repairClass`)
   if (!Array.isArray(testCase.oracle) || testCase.oracle.length === 0) throw new Error(`${testCase.id} needs an oracle`)
   for (const path of Object.keys(testCase.setup?.files ?? {})) requireSafeRelativePath(path, `${testCase.id} fixture path`)
   for (const check of testCase.oracle) {
@@ -74,6 +78,40 @@ for (const testCase of live.cases) {
   if (testCase.solvable && testCase.oracle.some(check => check.kind === 'always_false')) {
     throw new Error(`${testCase.id} is marked solvable but has an always_false oracle`)
   }
+}
+
+const protocol = live.preregistration
+if (protocol?.protocolId !== 'reliability-governor-live-v2-2026-08-23') throw new Error('live benchmark needs the v2 protocol id')
+if (JSON.stringify(protocol.arms) !== JSON.stringify(['baseline', 'governed-model-contract', 'governed-reference-contract'])) {
+  throw new Error('live benchmark needs the three pre-registered arms')
+}
+if (protocol.alpha !== 0.05 || protocol.minimumDetectableEffect?.absoluteRateDifference === undefined) {
+  throw new Error('live benchmark needs pre-registered alpha and MDE')
+}
+for (const key of [
+  'minimumContractAdoption',
+  'minimumReferenceContractMatch',
+  'maximumFalseExhaustion',
+  'maximumFalseAbstention',
+  'maximumFalseRejection',
+  'maximumContractAuthorshipPenalty',
+  'maximumOracleSuccessRegression',
+  'minimumRelativeFalseSuccessReduction',
+]) {
+  const value = protocol.verdictThresholds?.[key]
+  if (typeof value !== 'number' || value < 0 || value > 1) throw new Error(`invalid live verdict threshold: ${key}`)
+}
+
+const preregistration = JSON.parse(await readFile(evaluationUrl('live-benchmark.preregistered.json'), 'utf8'))
+if (preregistration.id !== protocol.protocolId) throw new Error('pre-registration id does not match the live manifest')
+const lockedFiles = {
+  'evaluations/live-benchmark.json': liveUrl,
+  'scripts/run-live-benchmark.mjs': new URL('../scripts/run-live-benchmark.mjs', import.meta.url),
+  'scripts/live-benchmark-analysis.mjs': new URL('../scripts/live-benchmark-analysis.mjs', import.meta.url),
+}
+for (const [name, url] of Object.entries(lockedFiles)) {
+  const digest = `sha256:${createHash('sha256').update(await readFile(url)).digest('hex')}`
+  if (preregistration.files?.[name] !== digest) throw new Error(`pre-registration hash mismatch: ${name}`)
 }
 
 console.log(`validated ${suite.cases.length} contract cases, ${keyless.cases.length} keyless cases, and ${live.cases.length} live cases`)

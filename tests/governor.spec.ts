@@ -94,18 +94,39 @@ describe('reliability governor core', () => {
     }, 0, LIMITS)).toThrow('1 to 3')
   })
 
-  it('proves file existence, absence, and literal content without executing anything', async () => {
+  it('proves file existence, absence, content, equality, and JSON values without executing anything', async () => {
     const results = await evaluateContract(contract([
       { id: 'exists', kind: 'file_exists', path: 'result.txt' },
       { id: 'literal', kind: 'file_contains', path: 'result.txt', text: 'READY' },
+      { id: 'forbidden', kind: 'file_not_contains', path: 'result.txt', text: 'BROKEN' },
+      { id: 'exact', kind: 'file_equals', path: 'result.txt', text: 'READY\n' },
+      { id: 'json', kind: 'json_equals', path: 'result.json', pointer: '/nested/enabled', value: true },
       { id: 'absent', kind: 'file_absent', path: 'error.txt' },
     ]), {
-      fs: fakeFs({ 'result.txt': 'READY\n' }),
+      fs: fakeFs({ 'result.txt': 'READY\n', 'result.json': '{"nested":{"enabled":true}}\n' }),
       session: session(),
       maxFileBytes: 1024,
     })
 
-    expect(results.map(item => item.passed)).toEqual([true, true, true])
+    expect(results.map(item => item.passed)).toEqual([true, true, true, true, true, true])
+  })
+
+  it('fails closed for invalid JSON pointers, mismatched exact content, and invalid JSON evidence', async () => {
+    expect(() => createContract({
+      objective: 'x',
+      checks: [{ id: 'pointer', kind: 'json_equals', path: 'data.json', pointer: 'bad', value: true }],
+    }, 0, LIMITS)).toThrow('JSON pointer')
+
+    const results = await evaluateContract(contract([
+      { id: 'exact', kind: 'file_equals', path: 'result.txt', text: 'READY\n' },
+      { id: 'json', kind: 'json_equals', path: 'data.json', pointer: '/enabled', value: true },
+    ]), {
+      fs: fakeFs({ 'result.txt': 'READY', 'data.json': 'not json' }),
+      session: session(),
+      maxFileBytes: 1024,
+    })
+    expect(results.map(item => item.passed)).toEqual([false, false])
+    expect(results[1]?.evidence).toContain('invalid JSON evidence')
   })
 
   it('fails closed when a file is missing, too large, or outside the workspace', async () => {
