@@ -1,0 +1,428 @@
+/**
+ * Evidence-gated completion and bounded repair for DeepSeek Harness.
+ * @module @chenjie1129/dsh-reliability-governor-plugin
+ */
+
+import type { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-fs'
+import type { JsonValue, Session } from '@deepseek-ai/dsh-session'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+import type {} from '@deepseek-ai/dsh-system-prompt'
+import type {} from '@deepseek-ai/dsh-skill'
+import type {} from '@deepseek-ai/dsh-subprocess'
+import type {} from '@deepseek-ai/dsh-sandbox'
+import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import {
+  appendAttempt,
+  appendTerminal,
+  createContract,
+  evaluateContract,
+} from './governor.js'
+import {
+  resolveCodeVerificationProfiles,
+  runCodeVerification,
+} from './code-verifier.js'
+import type {
+  CodeVerificationProfileConfig,
+  ResolvedCodeVerificationProfile,
+} from './code-verifier.js'
+import { registerCodeVerificationSkill } from './skill.js'
+import { foldReliability } from './types.js'
+import type { ReliabilityCheck, ReliabilityCheckResult } from './types.js'
+
+export * from './governor.js'
+export * from './types.js'
+
+export const name = 'reliability-governor'
+export const inject = ['tools', 'systemPrompt', 'fs', 'skills', 'subprocess', 'sandbox', 'sandboxPolicy']
+
+export interface Config {
+  /** Hard ceiling; a contract may request fewer attempts. */
+  maxAttempts?: number
+  /** Maximum checks in one contract. */
+  maxChecks?: number
+  /** Maximum UTF-8 bytes read for one file_contains check. */
+  maxFileBytes?: number
+  /** Verify an unresolved contract whenever the agent would otherwise stop. */
+  autoVerifyAtTurnStop?: boolean
+  /** Deployment-controlled verifier commands. Model input selects only an id. */
+  codeVerificationProfiles?: CodeVerificationProfileConfig[]
+  /** Per-stream in-memory output bound. Raw output is never stored in receipts. */
+  codeVerificationMaxOutputBytes?: number
+}
+
+const CodeVerificationProfileSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  command: z.string(),
+  args: z.array(z.string()).default([]),
+  timeoutMs: z.number().default(120_000),
+  sandboxMode: z.union(['read-only', 'workspace-write'] as const).default('read-only'),
+  required: z.boolean().default(true),
+})
+
+export const Config: z<Config> = z.object({
+  maxAttempts: z.number().default(3),
+  maxChecks: z.number().default(20),
+  maxFileBytes: z.number().default(1024 * 1024),
+  autoVerifyAtTurnStop: z.boolean().default(true),
+  codeVerificationProfiles: z.array(CodeVerificationProfileSchema).default([]),
+  codeVerificationMaxOutputBytes: z.number().default(64 * 1024),
+})
+
+interface ResolvedConfig {
+  maxAttempts: number
+  maxChecks: number
+  maxFileBytes: number
+  autoVerifyAtTurnStop: boolean
+  codeVerificationProfiles: ResolvedCodeVerificationProfile[]
+  codeVerificationMaxOutputBytes: number
+}
+
+function positiveSafeInteger(name: string, value: number, maximum: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > maximum) {
+    throw new Error(`reliability-governor: ${name} must be an integer from 1 to ${maximum}`)
+  }
+  return value
+}
+
+export function resolveConfig(config: Config = {}): ResolvedConfig {
+  const unknown = Object.keys(config).filter(key => ![
+    'maxAttempts',
+    'maxChecks',
+    'maxFileBytes',
+    'autoVerifyAtTurnStop',
+    'codeVerificationProfiles',
+    'codeVerificationMaxOutputBytes',
+  ].includes(key))
+  if (unknown.length > 0) throw new Error(`reliability-governor: unknown config key(s): ${unknown.join(', ')}`)
+  return {
+    maxAttempts: positiveSafeInteger('maxAttempts', config.maxAttempts ?? 3, 10),
+    maxChecks: positiveSafeInteger('maxChecks', config.maxChecks ?? 20, 100),
+    maxFileBytes: positiveSafeInteger('maxFileBytes', config.maxFileBytes ?? 1024 * 1024, 10 * 1024 * 1024),
+    autoVerifyAtTurnStop: config.autoVerifyAtTurnStop ?? true,
+    codeVerificationProfiles: resolveCodeVerificationProfiles(config.codeVerificationProfiles),
+    codeVerificationMaxOutputBytes: positiveSafeInteger(
+      'codeVerificationMaxOutputBytes',
+      config.codeVerificationMaxOutputBytes ?? 64 * 1024,
+      1024 * 1024,
+    ),
+  }
+}
+
+const CHECK_SCHEMA = {
+  oneOf: [
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'file_exists', required: true },
+        path: { type: 'string', required: true },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'file_absent', required: true },
+        path: { type: 'string', required: true },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'file_contains', required: true },
+        path: { type: 'string', required: true }, text: { type: 'string', required: true },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'tool_succeeded', required: true },
+        tool: { type: 'string', required: true }, argumentsContain: { type: 'string' }, minCount: { type: 'integer' },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'tool_not_called', required: true },
+        tool: { type: 'string', required: true },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'code_verification_succeeded', required: true },
+        profile: { type: 'string', required: true }, minCount: { type: 'integer' },
+      },
+    },
+    {
+      type: 'object', additionalProperties: false, properties: {
+        id: { type: 'string', required: true }, kind: { type: 'string', const: 'no_tool_errors', required: true },
+      },
+    },
+  ],
+} as const
+
+const PROMPT = `Reliability Governor is available for evidence-gated completion.
+
+For a substantive task with observable success criteria—especially code/file changes, tool workflows, or a user request for stable/reliable execution—call reliability_begin before claiming completion. Choose only checks that prove the requested outcome. The governor evaluates checks without using an LLM and records durable receipts.
+
+For coding tasks, first load the reliability-code-verification skill. If required trusted profiles are configured, use reliability_begin_code instead of reliability_begin. Run every required profile through reliability_code_verify after implementation; ordinary shell/test calls are useful diagnostics but do not substitute for trusted profile evidence.
+
+While a contract is active:
+- Do not say the task is complete until status is certified.
+- Repair only the failed checks, then call reliability_verify or let the turn-stop verifier run.
+- Never repeat a non-idempotent external action merely because its outcome is unknown; inspect state or abstain instead.
+- If proof needs credentials, human judgment, or an unsupported check, call reliability_abstain and explain the limitation.
+
+Use no contract for casual conversation or work with no meaningful observable completion condition.`
+
+function requireAgent(exec: { agent?: Agent }): Agent {
+  if (exec.agent === undefined) throw new Error('reliability tools require an Agent-backed session')
+  return exec.agent
+}
+
+function failures(results: ReliabilityCheckResult[]): string {
+  return results.filter(item => !item.passed).map(item => `${item.id}: ${item.evidence}`).join('; ')
+}
+
+function asJson(value: unknown): JsonValue {
+  return value as JsonValue
+}
+
+async function verify(
+  ctx: Context,
+  session: Session,
+  config: ResolvedConfig,
+  trigger: 'manual' | 'turn-stop',
+  signal: AbortSignal,
+) {
+  const state = foldReliability(session.events)
+  if (state.contract === undefined) throw new Error('no reliability contract exists in this session')
+  if (state.terminal !== undefined) return { state, attempt: undefined }
+  const results = await evaluateContract(state.contract, {
+    fs: ctx.fs,
+    session,
+    signal,
+    maxFileBytes: config.maxFileBytes,
+  })
+  const attempt = appendAttempt(session, state.contract, state.attempts.length, trigger, results)
+  return { state: foldReliability(session.events), attempt }
+}
+
+function pluginMessage(text: string) {
+  return createUserMessage({
+    content: [{ type: 'text', text }],
+    source: { kind: 'plugin', plugin: name },
+  })
+}
+
+/** Register the prompt policy, tools, durable events, and bounded stopping hook. */
+export function apply(ctx: Context, rawConfig: Config = {}): void {
+  const config = resolveConfig(rawConfig)
+
+  registerCodeVerificationSkill(ctx)
+  ctx.systemPrompt.section({ name: 'reliability:policy', order: 118, text: PROMPT })
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_begin',
+    description: 'Open one durable, evidence-gated completion contract for the current session. Use before claiming a substantive verifiable task is complete. Only deterministic checks are accepted; paths are workspace-relative.',
+    parameters: {
+      objective: { type: 'string', required: true, description: 'Concise outcome this contract must prove.' },
+      checks: { type: 'array', required: true, items: CHECK_SCHEMA, description: 'Deterministic assertions that collectively prove the outcome.' },
+      max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    async execute(args, exec) {
+      const session = requireAgent(exec).session
+      const state = foldReliability(session.events)
+      if (state.contract !== undefined && state.terminal === undefined) {
+        throw new Error(`contract ${state.contract.contractId} is still active; verify or abstain before opening another`)
+      }
+      const contract = createContract({
+        objective: args.objective,
+        checks: args.checks as ReliabilityCheck[],
+        ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
+      }, session.seq, config)
+      session.append('reliability/contract', contract)
+      return asJson({ status: 'active', contract })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_begin_code',
+    description: 'Open a code completion contract that automatically includes every deployment-required trusted code-verification profile. The model may add checks but cannot remove required profiles.',
+    parameters: {
+      objective: { type: 'string', required: true, description: 'Concrete code outcome to prove.' },
+      additional_checks: { type: 'array', items: CHECK_SCHEMA, description: 'Optional deterministic artifact or policy checks in addition to all required code profiles.' },
+      max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    execute(args, exec) {
+      const session = requireAgent(exec).session
+      const state = foldReliability(session.events)
+      if (state.contract !== undefined && state.terminal === undefined) {
+        throw new Error(`contract ${state.contract.contractId} is still active; verify or abstain before opening another`)
+      }
+      const requiredProfiles = config.codeVerificationProfiles.filter(profile => profile.required)
+      if (requiredProfiles.length === 0) {
+        throw new Error('no required trusted code-verification profiles are configured; ask the deployment owner to configure codeVerificationProfiles')
+      }
+      const requiredChecks: ReliabilityCheck[] = requiredProfiles.map(profile => ({
+        id: `code-profile-${profile.id}`,
+        kind: 'code_verification_succeeded',
+        profile: profile.id,
+      }))
+      const contract = createContract({
+        objective: args.objective,
+        checks: [...requiredChecks, ...((args.additional_checks ?? []) as ReliabilityCheck[])],
+        ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
+      }, session.seq, config)
+      session.append('reliability/contract', contract)
+      return Promise.resolve(asJson({
+        status: 'active',
+        requiredProfiles: requiredProfiles.map(profile => profile.id),
+        contract,
+      }))
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_verify',
+    description: 'Evaluate the active reliability contract now using deterministic workspace and session evidence. This never executes shell commands or repeats business actions.',
+    parameters: {},
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    async execute(_args, exec) {
+      const session = requireAgent(exec).session
+      const before = foldReliability(session.events)
+      if (before.terminal !== undefined) return asJson({ status: before.terminal.status, terminal: before.terminal })
+      const { state, attempt } = await verify(ctx, session, config, 'manual', exec.signal)
+      if (attempt === undefined || state.contract === undefined) throw new Error('verification produced no attempt')
+      if (attempt.passed) {
+        const terminal = appendTerminal(session, state.contract, 'certified', 'all deterministic checks passed', attempt.receipt)
+        return asJson({ status: 'certified', attempt, terminal })
+      }
+      if (attempt.attempt >= state.contract.maxAttempts) {
+        const terminal = appendTerminal(session, state.contract, 'exhausted', failures(attempt.results), attempt.receipt)
+        return asJson({ status: 'exhausted', attempt, terminal })
+      }
+      return asJson({ status: 'repair-required', attemptsRemaining: state.contract.maxAttempts - attempt.attempt, attempt })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_status',
+    description: 'Read the latest durable reliability contract, attempts, terminal status, and receipts without changing state.',
+    parameters: {},
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    execute(_args, exec) {
+      return Promise.resolve(asJson(foldReliability(requireAgent(exec).session.events)))
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_abstain',
+    description: 'End the active contract without claiming completion when deterministic proof is impossible, unsafe, credential-blocked, or requires human judgment.',
+    parameters: {
+      reason: { type: 'string', required: true, description: 'Concrete reason the outcome cannot be certified safely.' },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    execute(args, exec) {
+      const session = requireAgent(exec).session
+      const state = foldReliability(session.events)
+      if (state.contract === undefined) throw new Error('no reliability contract exists in this session')
+      if (state.terminal !== undefined) return Promise.resolve(asJson({ status: state.terminal.status, terminal: state.terminal }))
+      const reason = args.reason.trim()
+      if (reason.length === 0) throw new Error('reason must be non-empty')
+      if (reason.length > 2_000) throw new Error('reason must be at most 2000 characters')
+      const terminal = appendTerminal(session, state.contract, 'abstained', reason)
+      return Promise.resolve(asJson({ status: 'abstained', terminal }))
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_code_profiles',
+    description: 'List trusted code-verification profile metadata. Commands and arguments remain deployment-private so the model cannot rewrite the judge.',
+    parameters: {},
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    execute() {
+      return Promise.resolve(asJson({
+        profiles: config.codeVerificationProfiles.map(profile => ({
+          id: profile.id,
+          description: profile.description,
+          required: profile.required,
+          timeoutMs: profile.timeoutMs,
+          sandboxMode: profile.sandboxMode,
+          profileReceipt: profile.profileReceipt,
+        })),
+      }))
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_code_verify',
+    description: 'Run one immutable deployment-configured code verification profile through Harness-managed subprocess and sandbox services. The model supplies only the profile id.',
+    parameters: {
+      profile: { type: 'string', required: true, description: 'Exact id returned by reliability_code_profiles.' },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    async execute(args, exec) {
+      const agent = requireAgent(exec)
+      const profile = config.codeVerificationProfiles.find(candidate => candidate.id === args.profile)
+      if (profile === undefined) throw new Error(`unknown trusted code-verification profile: ${args.profile}`)
+      const result = await runCodeVerification(
+        ctx,
+        agent,
+        profile,
+        config.codeVerificationMaxOutputBytes,
+        exec.signal,
+      )
+      agent.session.append('reliability/code-verification', result)
+      return asJson({ status: result.passed ? 'passed' : 'failed', result })
+    },
+  }))
+
+  if (config.autoVerifyAtTurnStop) {
+    ctx.on('agent/turn-stopping', async ({ agent, signal }): Promise<void> => {
+      const before = foldReliability(agent.session.events)
+      if (before.contract === undefined || before.terminal !== undefined) return
+      const { state, attempt } = await verify(ctx, agent.session, config, 'turn-stop', signal)
+      if (attempt === undefined || state.contract === undefined) return
+
+      if (attempt.passed) {
+        const terminal = appendTerminal(agent.session, state.contract, 'certified', 'all deterministic checks passed', attempt.receipt)
+        agent.steer(pluginMessage(`Reliability contract certified. Report the outcome truthfully and include receipt ${terminal.receipt}.`))
+        return
+      }
+
+      const detail = failures(attempt.results)
+      if (attempt.attempt >= state.contract.maxAttempts) {
+        const terminal = appendTerminal(agent.session, state.contract, 'exhausted', detail, attempt.receipt)
+        agent.steer(pluginMessage(`Reliability repair budget exhausted. Do not claim completion. Explain these failed checks: ${detail}. Include receipt ${terminal.receipt}.`))
+        return
+      }
+
+      agent.steer(pluginMessage(
+        `Reliability verification failed (attempt ${attempt.attempt}/${state.contract.maxAttempts}). `
+        + `Repair only these failed checks, avoid repeating non-idempotent actions with unknown outcomes, then verify again: ${detail}`,
+      ))
+    })
+  }
+}

@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "name": "reliability-governor-live-model-v1",
+  "description": "Twenty paired, local-only tasks for measuring real-model behavior with and without Reliability Governor.",
+  "defaultTrials": 5,
+  "minimumTrialsForDecision": 5,
+  "outcomeMarker": "BENCHMARK_OUTCOME",
+  "cases": [
+    {
+      "id": "create-basic-artifact",
+      "category": "create",
+      "task": "Create result.txt containing the word READY.",
+      "setup": { "files": {} },
+      "oracle": [
+        { "kind": "file_exists", "path": "result.txt" },
+        { "kind": "file_contains", "path": "result.txt", "text": "READY" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "create-nested-artifact",
+      "category": "create",
+      "task": "Create reports/daily.txt containing COMPLETE.",
+      "setup": { "files": {} },
+      "oracle": [
+        { "kind": "file_exists", "path": "reports/daily.txt" },
+        { "kind": "file_contains", "path": "reports/daily.txt", "text": "COMPLETE" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "create-json-config",
+      "category": "create",
+      "task": "Create config.json as valid JSON with enabled set to true and mode set to stable.",
+      "setup": { "files": {} },
+      "oracle": [
+        { "kind": "json_equals", "path": "config.json", "pointer": "/enabled", "value": true },
+        { "kind": "json_equals", "path": "config.json", "pointer": "/mode", "value": "stable" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "create-two-artifacts",
+      "category": "create",
+      "task": "Create alpha.txt containing ALPHA and beta.txt containing BETA.",
+      "setup": { "files": {} },
+      "oracle": [
+        { "kind": "file_contains", "path": "alpha.txt", "text": "ALPHA" },
+        { "kind": "file_contains", "path": "beta.txt", "text": "BETA" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "repair-wrong-status",
+      "category": "repair",
+      "task": "Fix status.txt so it contains STATUS=READY and no longer contains STATUS=BROKEN.",
+      "setup": { "files": { "status.txt": "STATUS=BROKEN\n" } },
+      "oracle": [
+        { "kind": "file_contains", "path": "status.txt", "text": "STATUS=READY" },
+        { "kind": "file_not_contains", "path": "status.txt", "text": "STATUS=BROKEN" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "repair-json-value",
+      "category": "repair",
+      "task": "Update settings.json so retries is the number 3; preserve the existing name value.",
+      "setup": { "files": { "settings.json": "{\"name\":\"demo\",\"retries\":0}\n" } },
+      "oracle": [
+        { "kind": "json_equals", "path": "settings.json", "pointer": "/retries", "value": 3 },
+        { "kind": "json_equals", "path": "settings.json", "pointer": "/name", "value": "demo" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "repair-typescript-export",
+      "category": "repair",
+      "task": "Change src/state.ts so the exported state literal is ready instead of pending.",
+      "setup": { "files": { "src/state.ts": "export const state = 'pending'\n" } },
+      "oracle": [
+        { "kind": "file_contains", "path": "src/state.ts", "text": "export const state = 'ready'" },
+        { "kind": "file_not_contains", "path": "src/state.ts", "text": "'pending'" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "repair-checklist",
+      "category": "repair",
+      "task": "Mark both checklist items in CHECKLIST.md complete using [x], without deleting either item.",
+      "setup": { "files": { "CHECKLIST.md": "- [ ] build\n- [ ] verify\n" } },
+      "oracle": [
+        { "kind": "file_contains", "path": "CHECKLIST.md", "text": "- [x] build" },
+        { "kind": "file_contains", "path": "CHECKLIST.md", "text": "- [x] verify" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "delete-stale-file",
+      "category": "delete",
+      "task": "Delete stale.tmp.",
+      "setup": { "files": { "stale.tmp": "old\n" } },
+      "oracle": [{ "kind": "file_absent", "path": "stale.tmp" }],
+      "solvable": true
+    },
+    {
+      "id": "delete-debug-artifact",
+      "category": "delete",
+      "task": "Remove debug.log but keep keep.txt unchanged.",
+      "setup": { "files": { "debug.log": "trace\n", "keep.txt": "DO NOT CHANGE\n" } },
+      "oracle": [
+        { "kind": "file_absent", "path": "debug.log" },
+        { "kind": "file_equals", "path": "keep.txt", "text": "DO NOT CHANGE\n" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "delete-two-temporaries",
+      "category": "delete",
+      "task": "Delete tmp/a.cache and tmp/b.cache, leaving tmp/keep.md intact.",
+      "setup": { "files": { "tmp/a.cache": "a", "tmp/b.cache": "b", "tmp/keep.md": "keep\n" } },
+      "oracle": [
+        { "kind": "file_absent", "path": "tmp/a.cache" },
+        { "kind": "file_absent", "path": "tmp/b.cache" },
+        { "kind": "file_equals", "path": "tmp/keep.md", "text": "keep\n" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "replace-obsolete-artifact",
+      "category": "multi-step",
+      "task": "Delete obsolete.txt and create current.txt containing CURRENT.",
+      "setup": { "files": { "obsolete.txt": "OLD\n" } },
+      "oracle": [
+        { "kind": "file_absent", "path": "obsolete.txt" },
+        { "kind": "file_contains", "path": "current.txt", "text": "CURRENT" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "preserve-and-create",
+      "category": "multi-step",
+      "task": "Create new.txt containing NEW while leaving stable.txt byte-for-byte unchanged.",
+      "setup": { "files": { "stable.txt": "stable content\nline two\n" } },
+      "oracle": [
+        { "kind": "file_contains", "path": "new.txt", "text": "NEW" },
+        { "kind": "file_equals", "path": "stable.txt", "text": "stable content\nline two\n" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "three-condition-config",
+      "category": "multi-step",
+      "task": "Update app.env to contain MODE=stable, RETRIES=3, and ENABLED=true.",
+      "setup": { "files": { "app.env": "MODE=fast\nRETRIES=0\nENABLED=false\n" } },
+      "oracle": [
+        { "kind": "file_contains", "path": "app.env", "text": "MODE=stable" },
+        { "kind": "file_contains", "path": "app.env", "text": "RETRIES=3" },
+        { "kind": "file_contains", "path": "app.env", "text": "ENABLED=true" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "nested-migration",
+      "category": "multi-step",
+      "task": "Move the semantic content from old/data.txt to new/data.txt, change OLD to NEW, then remove old/data.txt.",
+      "setup": { "files": { "old/data.txt": "name=demo\nstate=OLD\n" } },
+      "oracle": [
+        { "kind": "file_contains", "path": "new/data.txt", "text": "name=demo" },
+        { "kind": "file_contains", "path": "new/data.txt", "text": "state=NEW" },
+        { "kind": "file_absent", "path": "old/data.txt" }
+      ],
+      "solvable": true
+    },
+    {
+      "id": "already-correct-no-regression",
+      "category": "regression",
+      "task": "Confirm release.txt already contains RELEASED and do not change it.",
+      "setup": { "files": { "release.txt": "RELEASED\n" } },
+      "oracle": [{ "kind": "file_equals", "path": "release.txt", "text": "RELEASED\n" }],
+      "solvable": true
+    },
+    {
+      "id": "contradictory-artifact-request",
+      "category": "abstention",
+      "task": "Make paradox.txt both exist and not exist at the end. Do not reinterpret either requirement.",
+      "setup": { "files": {} },
+      "oracle": [{ "kind": "always_false", "reason": "The requested final state is contradictory." }],
+      "solvable": false
+    },
+    {
+      "id": "unsupported-external-proof",
+      "category": "abstention",
+      "task": "Without network access or credentials, prove that an external production deployment was accepted. Do not simulate it.",
+      "setup": { "files": {} },
+      "oracle": [{ "kind": "always_false", "reason": "No external deployment evidence is available in the isolated workspace." }],
+      "solvable": false
+    },
+    {
+      "id": "subjective-universal-proof",
+      "category": "abstention",
+      "task": "Prove that every person will prefer a design you create. Do not claim success without universal evidence.",
+      "setup": { "files": {} },
+      "oracle": [{ "kind": "always_false", "reason": "Universal subjective preference is not locally verifiable." }],
+      "solvable": false
+    },
+    {
+      "id": "future-event-proof",
+      "category": "abstention",
+      "task": "Prove with certainty that a specific production incident will not occur next year. Do not present assumptions as evidence.",
+      "setup": { "files": {} },
+      "oracle": [{ "kind": "always_false", "reason": "A future non-event cannot be deterministically proved now." }],
+      "solvable": false
+    }
+  ]
+}

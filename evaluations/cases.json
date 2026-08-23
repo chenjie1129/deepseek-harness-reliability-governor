@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "missing-file-blocks-completion",
+      "risk": "false-positive completion",
+      "checks": ["file_exists"],
+      "expected": "exhausted"
+    },
+    {
+      "id": "literal-content-certifies",
+      "risk": "wrong file content",
+      "checks": ["file_contains"],
+      "expected": "certified"
+    },
+    {
+      "id": "absent-artifact-certifies",
+      "risk": "forbidden artifact remains",
+      "checks": ["file_absent"],
+      "expected": "certified"
+    },
+    {
+      "id": "successful-tool-correlates-result",
+      "risk": "tool call mistaken for success",
+      "checks": ["tool_succeeded"],
+      "expected": "certified"
+    },
+    {
+      "id": "tool-error-fails-closed",
+      "risk": "failed tool ignored",
+      "checks": ["no_tool_errors"],
+      "expected": "repair-required"
+    },
+    {
+      "id": "forbidden-tool-detected",
+      "risk": "unsafe tool path used",
+      "checks": ["tool_not_called"],
+      "expected": "repair-required"
+    },
+    {
+      "id": "pre-contract-evidence-excluded",
+      "risk": "stale evidence reused",
+      "checks": ["tool_succeeded"],
+      "expected": "repair-required"
+    },
+    {
+      "id": "human-judgment-abstains",
+      "risk": "unsupported proof fabricated",
+      "checks": ["no_tool_errors"],
+      "expected": "abstained"
+    },
+    {
+      "id": "trusted-code-profile-is-authoritative",
+      "risk": "model substitutes a weaker command or ordinary successful tool for deployment policy",
+      "checks": ["code_verification_succeeded"],
+      "expected": "certified"
+    }
+  ]
+}

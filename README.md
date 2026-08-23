@@ -1,0 +1,120 @@
+# DeepSeek Harness Reliability Governor
+
+An opt-in DeepSeek Harness bundle that changes completion from a model assertion into a deterministic evidence decision.
+
+It does **not** make an LLM deterministic. It makes a narrower promise: while a reliability contract is active, the agent is steered until observable checks pass, its bounded repair budget is exhausted, or it abstains. Every attempt and terminal outcome is recorded in the durable session log with a content receipt.
+
+## Why this plugin exists
+
+LLM sampling is only one source of variation. Tool results, environment state, ambiguous success criteria, context, and the model's tendency to self-report completion also vary. Lower temperature cannot prove that a requested outcome happened, and some reasoning modes ignore temperature entirely.
+
+Harness already has goal and iterative workflow plugins, but their current documentation explicitly leaves independent verification to another layer. This plugin fills that generic runtime gap without replacing those workflows.
+
+## What it adds
+
+- `reliability_begin` — open one explicit completion contract.
+- `reliability_begin_code` — open a code contract that automatically includes every deployment-required trusted verification profile.
+- `reliability_verify` — run deterministic checks immediately.
+- `reliability_status` — read the durable contract, attempts, terminal state, and receipts.
+- `reliability_abstain` — stop without fabricating proof.
+- `reliability_code_profiles` — list trusted profile metadata without exposing model-rewritable commands.
+- `reliability_code_verify` — execute one immutable profile through Harness-managed subprocess and sandbox services.
+- `agent/turn-stopping` enforcement — verify before an active contract is allowed to settle, then steer a bounded repair or truthfully report certification/exhaustion.
+
+Supported checks in v0.2:
+
+| Check | Pass condition |
+| --- | --- |
+| `file_exists` | A workspace-relative path resolves to a regular file. |
+| `file_absent` | No path entry exists at the workspace-relative path. |
+| `file_contains` | A bounded regular text file contains an exact literal. |
+| `tool_succeeded` | The session log contains the required matching tool call and a correlated non-error result after the contract began. |
+| `tool_not_called` | The named tool was not called after the contract began. |
+| `code_verification_succeeded` | A named deployment-configured verifier profile produced a fresh successful durable result. |
+| `no_tool_errors` | No model-facing tool result after the contract began is an error. |
+
+File checks are read-only through Harness `ctx.fs`. Trusted code profiles receive exact deployment-authored argv and execute only through Harness `ctx.subprocess`, `ctx.sandbox`, and `ctx.sandboxPolicy`; the model supplies only a profile ID. The plugin never calls an LLM judge, retries a provider, or repeats a business action.
+
+## Install
+
+From the directory containing this checkout:
+
+```sh
+git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.git
+cd deepseek-harness-reliability-governor
+npm ci
+npm pack
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.2.0.tgz
+dsh --profile web --dump-config
+dsh --profile web
+```
+
+For a headless profile, replace `web` with its profile name. The installed profile must list `@chenjie1129/dsh-reliability-governor-plugin` in `dsh.profile.bundles`; merely placing the package beside Harness does not activate it.
+
+The shipped bundle layer mounts one plugin row:
+
+```yaml
+- insert:
+    - id: reliability-governor
+      name: '@chenjie1129/dsh-reliability-governor-plugin'
+      config:
+        maxAttempts: 3
+        maxChecks: 20
+        maxFileBytes: 1048576
+        autoVerifyAtTurnStop: true
+        codeVerificationMaxOutputBytes: 65536
+        codeVerificationProfiles: []
+```
+
+The empty code-profile list is a fail-safe default because repositories have different checks. Configure reviewed test/typecheck/build argv as described in [Trusted code verification](docs/CODE_VERIFICATION.md). The bundled `reliability-code-verification` skill teaches the workflow; the runtime profile, not the skill, is the independent judge.
+
+## Example contract
+
+The model calls:
+
+```json
+{
+  "objective": "Create a configured application entry point",
+  "checks": [
+    { "id": "entry", "kind": "file_exists", "path": "src/index.ts" },
+    { "id": "export", "kind": "file_contains", "path": "src/index.ts", "text": "export function apply" },
+    { "id": "tests", "kind": "tool_succeeded", "tool": "bash", "argumentsContain": "npm test" },
+    { "id": "clean-tools", "kind": "no_tool_errors" }
+  ],
+  "max_attempts": 3
+}
+```
+
+At a stopping boundary the plugin evaluates those assertions. A failure produces an exact repair message and another model step. A pass records `certified`; the final model step receives the terminal SHA-256 receipt. At the budget limit it records `exhausted` and explicitly tells the model not to claim completion.
+
+## Develop and verify
+
+```sh
+npm install
+npm run check
+```
+
+`npm run check` runs unit/composition tests, validates all evaluation manifests, builds strict ESM TypeScript, executes the 180-run keyless A/B benchmark, verifies the release contract, and audits the npm pack list. Follow [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) for the required clean-profile Harness test.
+
+Benchmark commands:
+
+```sh
+npm run benchmark:keyless
+npm run benchmark:live:plan
+```
+
+The keyless benchmark proves the governor's enforcement mechanics using the real Harness agent loop and an independent oracle. It does not prove that a natural-language model became deterministic. The provider-backed 20-task paired protocol, statistical gates, cost confirmation, and interpretation rules are documented in [docs/BENCHMARK.md](docs/BENCHMARK.md).
+
+## Boundaries
+
+- A receipt hashes the recorded contract/outcome; it is not a signature and does not prove the external world independently.
+- The model still chooses whether a task needs a contract and which checks express success. A bad contract can certify the wrong thing.
+- Deterministic checks improve outcome reliability, not wording consistency.
+- v0.2 does not judge visual quality, semantic correctness beyond configured checks, remote state without authoritative evidence, or unknown side-effect outcomes.
+- Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.
+
+See [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
+
+## License
+
+MIT

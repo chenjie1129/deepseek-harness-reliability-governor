@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.npm-cache/
+*.tgz
+.env
+.env.*
+.credentials.yaml
+!.env.example

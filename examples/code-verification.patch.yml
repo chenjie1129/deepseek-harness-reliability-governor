@@ -1,0 +1,23 @@
+# Example profile overlay. Review and adapt these commands for the target repository.
+- id: reliability-governor
+  config:
+    maxAttempts: 3
+    maxChecks: 20
+    maxFileBytes: 1048576
+    autoVerifyAtTurnStop: true
+    codeVerificationMaxOutputBytes: 65536
+    codeVerificationProfiles:
+      - id: unit-tests
+        description: Run the repository unit test suite.
+        command: npm
+        args: [test]
+        timeoutMs: 120000
+        sandboxMode: read-only
+        required: true
+      - id: typecheck
+        description: Run the repository TypeScript typecheck script.
+        command: npm
+        args: [run, typecheck]
+        timeoutMs: 120000
+        sandboxMode: read-only
+        required: true

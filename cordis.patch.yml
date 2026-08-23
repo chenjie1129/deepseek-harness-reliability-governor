@@ -1,0 +1,13 @@
+# Mount after the DeepSeek Harness base bundle. The plugin is opt-in and
+# contributes no network or client-side capability. Trusted code profiles are
+# deployment-configured and execute only through Harness subprocess/sandbox seams.
+- insert:
+    - id: reliability-governor
+      name: '@chenjie1129/dsh-reliability-governor-plugin'
+      config:
+        maxAttempts: 3
+        maxChecks: 20
+        maxFileBytes: 1048576
+        autoVerifyAtTurnStop: true
+        codeVerificationMaxOutputBytes: 65536
+        codeVerificationProfiles: []
