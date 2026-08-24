@@ -94,18 +94,49 @@ function assertCheck(check: ReliabilityCheck): void {
   }
 }
 
+const GOVERNOR_TOOL_NAMES = new Set([
+  'reliability_begin',
+  'reliability_begin_code',
+  'reliability_verify',
+  'reliability_status',
+  'reliability_abstain',
+  'reliability_code_profiles',
+  'reliability_code_verify',
+])
+
+function latestPotentialMutationSeq(events: readonly SessionEvent[], profile: string): number {
+  let latest = -1
+  for (const event of events) {
+    if ((event.type === 'tool/call' || event.type === 'tool/code-dispatch-start')
+      && !GOVERNOR_TOOL_NAMES.has(event.data.name)) {
+      latest = Math.max(latest, event.seq)
+    } else if (event.type === 'reliability/code-verification'
+      && event.data.sandboxMode === 'workspace-write'
+      && event.data.profile !== profile) {
+      latest = Math.max(latest, event.seq)
+    }
+  }
+  return latest
+}
+
 function codeVerificationSucceeded(
   events: readonly SessionEvent[],
   check: Extract<ReliabilityCheck, { kind: 'code_verification_succeeded' }>,
 ): ReliabilityCheckResult {
-  const successCount = events.filter(event => event.type === 'reliability/code-verification'
-    && event.data.profile === check.profile
-    && event.data.passed).length
   const required = check.minCount ?? 1
+  const mutationBoundary = latestPotentialMutationSeq(events, check.profile)
+  const matching = events.filter((event): event is Extract<SessionEvent, { type: 'reliability/code-verification' }> =>
+    event.type === 'reliability/code-verification' && event.data.profile === check.profile)
+  const fresh = matching.filter(event => event.seq > mutationBoundary)
+  const latest = fresh.slice(-required)
+  const successCount = latest.filter(event => event.data.passed).length
+  const staleCount = matching.length - fresh.length
+  const passed = latest.length === required && successCount === required
   return result(
     check,
-    successCount >= required,
-    `${successCount} trusted successful ${check.profile} verification(s); required ${required}`,
+    passed,
+    `${successCount} of ${required} latest ${check.profile} verification(s) passed after the latest potential mutation`
+      + (staleCount === 0 ? '' : `; ignored ${staleCount} stale result(s)`),
   )
 }
 

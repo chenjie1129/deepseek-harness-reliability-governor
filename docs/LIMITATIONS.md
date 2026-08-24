@@ -21,6 +21,14 @@ The plugin does not expose raw verifier stdout/stderr. Agents must use ordinary 
 
 `no_tool_errors` describes the whole post-contract trajectory. A recoverable intermediate error therefore makes that check fail even if the final artifact is correct. It should be used only when an error-free trajectory is a real requirement. The live benchmark includes this false-rejection pressure explicitly.
 
+Trusted verifier freshness is enforced against the durable Harness tool log:
+any later non-governor tool call invalidates an earlier successful verifier
+result, as does a later different verifier profile with `workspace-write`
+access. This is deliberately conservative because arbitrary tools do not expose
+authoritative side-effect metadata. It does not detect workspace changes made
+out of band without a Harness tool event; deployments must prevent concurrent
+external writers or rely on stronger CI/protected-check authority.
+
 ## Contract adoption remains a policy gap
 
 `reliability_begin_code` prevents the model from omitting required profiles after it chooses the code contract. It cannot reliably infer that every arbitrary prompt is a coding task. A deployment requiring universal adoption still needs an outer task policy or user-authored contract trigger.

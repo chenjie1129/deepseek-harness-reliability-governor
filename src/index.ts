@@ -187,6 +187,7 @@ For coding tasks, first load the reliability-code-verification skill. If require
 While a contract is active:
 - Do not say the task is complete until status is certified.
 - Repair only the failed checks, then call reliability_verify or let the turn-stop verifier run.
+- Run trusted code-verification profiles after all ordinary tool calls, with workspace-write profiles before read-only profiles. Any later non-governor tool call, or a different workspace-write profile, invalidates earlier trusted results and requires a rerun.
 - Use file_contains only for requirements that truly demand that literal. Prefer file_equals or json_equals when exact file or structured value semantics are intended.
 - Use no_tool_errors only when a clean error-free trajectory is itself required; a recovered intermediate error does not prove the final outcome failed.
 - Never repeat a non-idempotent external action merely because its outcome is unknown; inspect state or abstain instead.

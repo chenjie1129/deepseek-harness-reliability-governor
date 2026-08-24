@@ -69,7 +69,17 @@ Some test tools write caches, coverage, snapshots, or build output. Keep profile
 3. `reliability_code_verify` accepts one profile ID and resolves the deployment-authored executable through `ctx.subprocess`.
 4. The exact argv is confined through `ctx.sandbox` using policy from `ctx.sandboxPolicy`, then executed by the managed subprocess service with credential-shaped ambient environment variables scrubbed by Harness.
 5. The plugin records `reliability/code-verification`. The event contains exit facts, timing, sandbox facts, byte counts, truncation flags, content receipts, and the profile-definition receipt. It stores no raw stdout/stderr.
-6. `code_verification_succeeded` accepts only successful matching events after the contract boundary.
+6. `code_verification_succeeded` examines the latest required matching events
+   after both the contract boundary and the last non-governor tool call. Every
+   one of those latest results must pass.
+
+Run trusted profiles after all implementation and diagnostic tool calls. Any
+later non-governor tool call, including a nested Code Mode dispatch, invalidates
+earlier verifier evidence. Running a different profile with `workspace-write`
+access also invalidates earlier profiles, so run write-capable profiles first
+and read-only profiles last. Harness has no universal authoritative side-effect
+classification, so this rule intentionally treats read-only calls as possible
+mutations and may require a conservative rerun.
 
 ## Failure and diagnosis
 
@@ -84,4 +94,4 @@ Raw verifier output is intentionally omitted from the durable event and model-fa
 
 ## Remaining boundary
 
-The runtime isolates command selection from the model; it does not make repository tests correct. A weak or malicious deployment profile can still certify weak evidence, and a model may omit `reliability_begin_code` unless a higher policy mandates contract adoption. CI or protected external checks remain the stronger authority for release decisions.
+The runtime isolates command selection from the model; it does not make repository tests correct. A weak or malicious deployment profile can still certify weak evidence, and a model may omit `reliability_begin_code` unless a higher policy mandates contract adoption. Out-of-band workspace writes that create no Harness tool event also remain outside the freshness boundary, so production deployments should isolate the workspace from concurrent writers. CI or protected external checks remain the stronger authority for release decisions.

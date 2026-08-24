@@ -227,6 +227,103 @@ describe('reliability governor core', () => {
     })
 
     expect(results.map(item => item.passed)).toEqual([false, true])
-    expect(results[0]?.evidence).toContain('1 trusted successful')
+    expect(results[0]?.evidence).toContain('1 of 2 latest')
+  })
+
+  it('rejects stale or superseded trusted code-verification evidence', async () => {
+    const codeResult = (
+      passed: boolean,
+      profile = 'tests',
+      sandboxMode: 'read-only' | 'workspace-write' = 'read-only',
+    ) => ({
+      version: 1,
+      verificationId: `verification-${profile}-${passed}`,
+      profile,
+      profileReceipt: 'sha256:profile',
+      passed,
+      exitCode: passed ? 0 : 1,
+      signal: null,
+      durationMs: 10,
+      sandboxMode,
+      sandboxEnforcement: 'full',
+      stdout: { bytes: 0, truncated: false, receipt: 'sha256:stdout' },
+      stderr: { bytes: 0, truncated: false, receipt: 'sha256:stderr' },
+      receipt: 'sha256:result',
+    })
+    const check: ReliabilityContract['checks'] = [
+      { id: 'tests', kind: 'code_verification_succeeded', profile: 'tests' },
+    ]
+    const staleResults = await evaluateContract(contract(check, 1), {
+      fs: fakeFs({}),
+      session: session([
+        event(1, 'reliability/contract', {}),
+        event(2, 'reliability/code-verification', codeResult(true)),
+        event(3, 'tool/call', {
+          turn: 1,
+          step: 2,
+          callId: 'edit-after-tests',
+          name: 'edit',
+          arguments: '{"path":"src/index.ts"}',
+        }),
+        event(4, 'tool/result', {
+          turn: 1,
+          step: 2,
+          message: { source: { kind: 'tool', callId: 'edit-after-tests' }, content: [{ isError: false }] },
+        }),
+        event(5, 'tool/call', {
+          turn: 1,
+          step: 3,
+          callId: 'verify',
+          name: 'reliability_verify',
+          arguments: '{}',
+        }),
+      ]),
+      maxFileBytes: 1024,
+    })
+    expect(staleResults[0]).toMatchObject({ passed: false })
+    expect(staleResults[0]?.evidence).toContain('ignored 1 stale result')
+
+    const supersededResults = await evaluateContract(contract(check, 1), {
+      fs: fakeFs({}),
+      session: session([
+        event(1, 'reliability/contract', {}),
+        event(2, 'reliability/code-verification', codeResult(true)),
+        event(3, 'reliability/code-verification', codeResult(false)),
+      ]),
+      maxFileBytes: 1024,
+    })
+    expect(supersededResults[0]).toMatchObject({ passed: false })
+    expect(supersededResults[0]?.evidence).toContain('0 of 1 latest')
+
+    const refreshedResults = await evaluateContract(contract(check, 1), {
+      fs: fakeFs({}),
+      session: session([
+        event(1, 'reliability/contract', {}),
+        event(2, 'reliability/code-verification', codeResult(true)),
+        event(3, 'tool/code-dispatch-start', {
+          rootCallId: 'run-code',
+          parentCallId: 'run-code',
+          subCallId: 'run-code:code:0',
+          name: 'write',
+          arguments: { path: 'src/index.ts' },
+        }),
+        event(4, 'reliability/code-verification', codeResult(true)),
+      ]),
+      maxFileBytes: 1024,
+    })
+    expect(refreshedResults[0]).toMatchObject({ passed: true })
+    expect(refreshedResults[0]?.evidence).toContain('ignored 1 stale result')
+
+    const crossProfileWriteResults = await evaluateContract(contract(check, 1), {
+      fs: fakeFs({}),
+      session: session([
+        event(1, 'reliability/contract', {}),
+        event(2, 'reliability/code-verification', codeResult(true)),
+        event(3, 'reliability/code-verification', codeResult(true, 'build', 'workspace-write')),
+      ]),
+      maxFileBytes: 1024,
+    })
+    expect(crossProfileWriteResults[0]).toMatchObject({ passed: false })
+    expect(crossProfileWriteResults[0]?.evidence).toContain('ignored 1 stale result')
   })
 })

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Invalidate trusted code-verification evidence after any later non-governor tool call, including nested Code Mode dispatches, or a later different workspace-write verifier.
+- Require the latest configured number of fresh profile results to all pass, preventing an older success from masking a newer failure.
+
 ## 0.3.0
 
 - Add exact-negative, exact-file, and JSON Pointer equality checks for less brittle artifact contracts.

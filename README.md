@@ -33,10 +33,12 @@ Supported checks in v0.3:
 | `json_equals` | A JSON Pointer resolves to the exact predeclared JSON value. |
 | `tool_succeeded` | The session log contains the required matching tool call and a correlated non-error result after the contract began. |
 | `tool_not_called` | The named tool was not called after the contract began. |
-| `code_verification_succeeded` | A named deployment-configured verifier profile produced a fresh successful durable result. |
+| `code_verification_succeeded` | The latest required results from a named deployment-configured verifier profile succeeded after the last non-governor tool call. |
 | `no_tool_errors` | No model-facing tool result after the contract began is an error. |
 
 File checks are read-only through Harness `ctx.fs`. Trusted code profiles receive exact deployment-authored argv and execute only through Harness `ctx.subprocess`, `ctx.sandbox`, and `ctx.sandboxPolicy`; the model supplies only a profile ID. The plugin never calls an LLM judge, retries a provider, or repeats a business action.
+
+Trusted verifier evidence is invalidated conservatively by any later non-governor tool call, including nested Code Mode dispatches, and by a later different verifier profile with `workspace-write` access. This prevents a test result from certifying code that the agent or another verifier changed afterward. Because Harness does not expose authoritative side-effect metadata for arbitrary tools, even a later read-only tool call requires the trusted profile to be rerun.
 
 `file_contains` and `no_tool_errors` intentionally have narrow meanings. The policy warns the model not to use an exact literal for equivalent-output requirements and not to treat a recovered intermediate tool error as evidence that the final result failed. The live benchmark includes JSON-format equivalence and a recoverable-tool-error task to measure those authorship mistakes rather than assume them away.
 
@@ -114,6 +116,7 @@ The keyless benchmark proves the governor's enforcement mechanics using the real
 
 - A receipt hashes the recorded contract/outcome; it is not a signature and does not prove the external world independently.
 - The model still chooses whether a task needs a contract and which checks express success. A bad contract can certify the wrong thing.
+- Out-of-band workspace changes that produce no Harness tool event are not detected; use isolated workspaces and prevent concurrent external writers.
 - Deterministic checks improve outcome reliability, not wording consistency.
 - v0.3 does not judge visual quality, semantic correctness beyond configured checks, remote state without authoritative evidence, or unknown side-effect outcomes.
 - Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.

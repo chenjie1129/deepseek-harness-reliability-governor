@@ -63,7 +63,20 @@ File checks:
 
 Tool checks correlate `tool/call.callId` with `tool/result.message.source.callId`. Only events after `startedAtSeq` count, preventing stale pre-contract evidence from certifying later work.
 
-`code_verification_succeeded` counts only successful `reliability/code-verification` events for the named immutable profile after the contract boundary. An ordinary `bash`, test, or successful tool call cannot substitute.
+`code_verification_succeeded` considers only the latest required
+`reliability/code-verification` events for the named immutable profile after
+both the contract boundary and the last non-governor tool call. The latest
+required results must all pass. Native calls and nested Code Mode dispatches
+both advance this conservative freshness boundary. A later different verifier
+profile with `workspace-write` access also advances it, so one profile cannot
+certify state that another profile may have changed. An ordinary `bash`, test,
+or successful tool call cannot substitute.
+
+Harness does not currently expose authoritative side-effect metadata for every
+tool. The boundary therefore treats even read-only non-governor calls as
+potential mutations. This may require an unnecessary verifier rerun, but fails
+closed instead of certifying stale evidence. Out-of-band writes that create no
+session event remain a deployment isolation concern.
 
 ## Isolated coding judgment
 
