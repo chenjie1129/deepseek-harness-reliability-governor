@@ -2,11 +2,10 @@
 
 ## Unreleased
 
-- Invalidate trusted code-verification evidence after any later non-governor tool call, including nested Code Mode dispatches, or a later different workspace-write verifier.
-- Require the latest configured number of fresh profile results to all pass, preventing an older success from masking a newer failure.
-
 ## 0.3.0
 
+- Invalidate trusted code-verification evidence after any later non-governor tool call, including nested Code Mode dispatches, or a later different workspace-write verifier.
+- Require the latest configured number of fresh profile results to all pass, preventing an older success from masking a newer failure.
 - Add exact-negative, exact-file, and JSON Pointer equality checks for less brittle artifact contracts.
 - Replace the live A/B protocol with a pre-registered three-arm benchmark: baseline, model-authored contract, and independently authored reference contract.
 - Make arm-neutral and governed terminal contingency tables the primitive report outputs.

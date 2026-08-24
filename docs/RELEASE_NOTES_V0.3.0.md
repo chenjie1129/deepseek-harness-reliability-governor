@@ -4,6 +4,7 @@ v0.3.0 turns the benchmark's false-rejection critique into an auditable three-ar
 
 ## Highlights
 
+- Reject trusted code-verification evidence made stale by later non-governor tool calls, nested Code Mode dispatches, or another workspace-writing verifier; require the latest configured fresh results to all pass.
 - Add `file_not_contains`, `file_equals`, and JSON Pointer-based `json_equals` checks.
 - Preserve the full result set for every check on every attempt.
 - Replace the live A/B design with pre-registered baseline, model-authored-contract, and independently-authored-reference-contract arms.
@@ -32,7 +33,7 @@ dsh --profile web --dump-config
 
 Confirm that `@chenjie1129/dsh-reliability-governor-plugin` appears in `dsh.profile.bundles`, then start the profile normally. Trusted code-verification profiles are empty by default and must be deployment-authored.
 
-When publishing the GitHub Release, attach the exact `.tgz` that passed the clean-profile smoke test and a SHA-256 checksum file. Do not substitute a locally rebuilt artifact after validation.
+The GitHub Release assets contain the exact `.tgz` that passed the clean-profile smoke test and a `SHA256SUMS.txt` file for independent integrity verification.
 
 ## Compatibility and boundaries
 
