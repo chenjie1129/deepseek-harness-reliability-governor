@@ -1,12 +1,12 @@
 {
-  "version": 3,
-  "name": "reliability-governor-live-model-v3",
+  "version": 4,
+  "name": "reliability-governor-live-model-v4",
   "description": "Pre-registered three-arm local benchmark of false success, false rejection, claim coverage, contract authorship, repair effects, and overhead.",
   "defaultTrials": 5,
   "minimumTrialsForDecision": 5,
   "outcomeMarker": "BENCHMARK_OUTCOME",
   "preregistration": {
-    "protocolId": "reliability-governor-live-v3-2026-08-25",
+    "protocolId": "reliability-governor-live-v4-2026-08-25",
     "arms": ["baseline", "governed-model-contract", "governed-reference-contract"],
     "unitOfAssignment": "case-trial block",
     "armOrder": "deterministic three-way rotation by case index plus trial",

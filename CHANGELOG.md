@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.5.0
+
+- Add configurable `current-agent`, `auxiliary-model`, and `manual` contract-authoring modes while keeping deterministic/external checks as the only certification authority.
+- Add `reliability_draft`, a single bounded provider-neutral Harness LLM call with no tools, workspace access, repair loop, or automatic route fallback.
+- Bind auxiliary drafts to `reliability_begin` through a durable single-use receipt, recorded on the version 3 contract, so the task agent cannot silently weaken, rewrite, or replay the objective, claims, or checks.
+- Support receipt-bound `code` drafts by injecting all deployment-required verifier profiles before hashing and requiring the exact draft at `reliability_begin_code`.
+- Record version 3 contract authorship and privacy-minimized draft provenance without persisting auxiliary reasoning or duplicating raw context in the custom draft event.
+- Reject malformed JSON, action/tool output, non-normal finishes, oversized input/output, unknown code-verification profiles, and invalid authoring configuration before activation.
+- Preserve a zero-configuration, zero-extra-model-call default and label manual provenance honestly as caller-declared rather than authenticated human review.
+
 ## 0.4.0
 
 - Add `reliability_assess` to preflight declared-claim coverage without evaluating task output or mutating session state.

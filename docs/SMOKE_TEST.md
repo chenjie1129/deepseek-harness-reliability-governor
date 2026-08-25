@@ -22,7 +22,7 @@ Create an isolated Harness home and install the exact tarball into a fresh profi
 ```sh
 export DSH_SMOKE_HOME="$(mktemp -d)"
 export DSH_HOME="$DSH_SMOKE_HOME"
-dsh plugin --profile reliability-smoke add ./chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz
+dsh plugin --profile reliability-smoke add ./chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz
 export GOVERNOR_PACKAGE="$DSH_HOME/profiles/reliability-smoke/node_modules/@chenjie1129/dsh-reliability-governor-plugin"
 dsh --profile reliability-smoke \
   --patch "$GOVERNOR_PACKAGE/examples/code-verification.patch.yml" \
@@ -43,6 +43,6 @@ dsh --profile reliability-smoke \
   --patch "$GOVERNOR_PACKAGE/examples/code-verification.patch.yml"
 ```
 
-Let startup settle, verify there is no activation error, and press Ctrl-C. Harness exits `130` for that deliberate interrupt. The boot must complete with the plugin's `skills` dependency present; package integration tests additionally assert that `reliability-code-verification` appears in `ctx.skills`. A model-backed end-to-end trial additionally requires a configured provider. Run repeated task trials, not one transcript, and compare false completion and certified success against an ungoverned profile.
+Let startup settle, verify there is no activation error, and press Ctrl-C. Harness exits `130` for that deliberate interrupt. The boot must complete with the plugin's `skills` and `llm` dependencies present; package integration tests additionally assert that `reliability-code-verification` appears in `ctx.skills` and that default `current-agent` mode makes no auxiliary call. A model-backed auxiliary-author trial additionally requires a configured Harness provider route and a patched `contractAuthoring.mode: auxiliary-model`; it is not proven by a default-profile boot. Run repeated task trials, not one transcript, and compare false completion and certified success against an ungoverned profile.
 
 Delete only the exact temporary directory after recording results. Do not use an existing user profile as the smoke target.

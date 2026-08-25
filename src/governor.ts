@@ -7,6 +7,7 @@ import type {
   ReliabilityCheck,
   ReliabilityCheckResult,
   ReliabilityContract,
+  ReliabilityContractAuthorship,
   ReliabilityTerminal,
 } from './types.js'
 import type { ReliabilityClaim } from './types.js'
@@ -97,6 +98,7 @@ export function validateChecks(
 }
 
 const GOVERNOR_TOOL_NAMES = new Set([
+  'reliability_draft',
   'reliability_begin',
   'reliability_assess',
   'reliability_begin_code',
@@ -145,7 +147,13 @@ function codeVerificationSucceeded(
 
 /** Validate and detach a model-authored contract before it enters the log. */
 export function createContract(
-  input: { objective: string; checks: ReliabilityCheck[]; claims?: ReliabilityClaim[]; maxAttempts?: number },
+  input: {
+    objective: string
+    checks: ReliabilityCheck[]
+    claims?: ReliabilityClaim[]
+    authorship?: ReliabilityContractAuthorship
+    maxAttempts?: number
+  },
   startedAtSeq: number,
   limits: GovernorLimits,
 ): ReliabilityContract {
@@ -176,6 +184,15 @@ export function createContract(
   if (coverageAssessment.status !== 'ready') {
     const errors = coverageAssessment.findings.filter(item => item.severity === 'error').map(item => item.message)
     throw new Error(`contract coverage requires review: ${errors.join('; ')}`)
+  }
+  if (input.authorship !== undefined) {
+    return structuredClone({
+      version: 3 as const,
+      ...base,
+      claims: input.claims,
+      coverageAssessment,
+      authorship: input.authorship,
+    })
   }
   return structuredClone({
     version: 2 as const,

@@ -24,6 +24,14 @@ import {
 } from './governor.js'
 import { assessContractCoverage } from './coverage.js'
 import {
+  draftContract,
+  resolveContractAuthoringConfig,
+} from './contract-author.js'
+import type {
+  ContractAuthoringConfig,
+  ResolvedContractAuthoringConfig,
+} from './contract-author.js'
+import {
   resolveCodeVerificationProfiles,
   runCodeVerification,
 } from './code-verifier.js'
@@ -33,14 +41,21 @@ import type {
 } from './code-verifier.js'
 import { registerCodeVerificationSkill } from './skill.js'
 import { foldReliability } from './types.js'
-import type { ReliabilityCheck, ReliabilityCheckResult, ReliabilityClaim } from './types.js'
+import type {
+  ReliabilityCheck,
+  ReliabilityCheckResult,
+  ReliabilityClaim,
+  ReliabilityContractAuthorship,
+  ReliabilityContractDraft,
+} from './types.js'
+import { canonicalJsonForComparison } from './receipts.js'
 
 export * from './governor.js'
 export * from './coverage.js'
 export * from './types.js'
 
 export const name = 'reliability-governor'
-export const inject = ['tools', 'systemPrompt', 'fs', 'skills', 'subprocess', 'sandbox', 'sandboxPolicy']
+export const inject = ['tools', 'systemPrompt', 'fs', 'skills', 'subprocess', 'sandbox', 'sandboxPolicy', 'llm']
 
 export interface Config {
   /** Hard ceiling; a contract may request fewer attempts. */
@@ -55,6 +70,8 @@ export interface Config {
   codeVerificationProfiles?: CodeVerificationProfileConfig[]
   /** Per-stream in-memory output bound. Raw output is never stored in receipts. */
   codeVerificationMaxOutputBytes?: number
+  /** Select who proposes the initial claim/check set. Certification remains deterministic in every mode. */
+  contractAuthoring?: ContractAuthoringConfig
 }
 
 const CodeVerificationProfileSchema = z.object({
@@ -67,6 +84,16 @@ const CodeVerificationProfileSchema = z.object({
   required: z.boolean().default(true),
 })
 
+const ContractAuthoringSchema = z.object({
+  mode: z.union(['current-agent', 'auxiliary-model', 'manual'] as const).default('current-agent'),
+  provider: z.string(),
+  model: z.string(),
+  reasoningEffort: z.string(),
+  maxInputBytes: z.number().default(32 * 1024),
+  maxOutputTokens: z.number().default(3_000),
+  timeoutMs: z.number().default(45_000),
+})
+
 export const Config: z<Config> = z.object({
   maxAttempts: z.number().default(3),
   maxChecks: z.number().default(20),
@@ -74,6 +101,7 @@ export const Config: z<Config> = z.object({
   autoVerifyAtTurnStop: z.boolean().default(true),
   codeVerificationProfiles: z.array(CodeVerificationProfileSchema).default([]),
   codeVerificationMaxOutputBytes: z.number().default(64 * 1024),
+  contractAuthoring: ContractAuthoringSchema,
 })
 
 interface ResolvedConfig {
@@ -83,6 +111,7 @@ interface ResolvedConfig {
   autoVerifyAtTurnStop: boolean
   codeVerificationProfiles: ResolvedCodeVerificationProfile[]
   codeVerificationMaxOutputBytes: number
+  contractAuthoring: ResolvedContractAuthoringConfig
 }
 
 function positiveSafeInteger(name: string, value: number, maximum: number): number {
@@ -100,6 +129,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     'autoVerifyAtTurnStop',
     'codeVerificationProfiles',
     'codeVerificationMaxOutputBytes',
+    'contractAuthoring',
   ].includes(key))
   if (unknown.length > 0) throw new Error(`reliability-governor: unknown config key(s): ${unknown.join(', ')}`)
   return {
@@ -113,6 +143,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
       config.codeVerificationMaxOutputBytes ?? 64 * 1024,
       1024 * 1024,
     ),
+    contractAuthoring: resolveContractAuthoringConfig(config.contractAuthoring),
   }
 }
 
@@ -224,9 +255,17 @@ function normalizeClaims(claims: ToolClaim[]): ReliabilityClaim[] {
   }))
 }
 
-const PROMPT = `Reliability Governor is available for evidence-gated completion.
+function promptFor(mode: ResolvedContractAuthoringConfig['mode']): string {
+  const authoring = mode === 'auxiliary-model'
+    ? `Contract authorship mode is auxiliary-model. After read-only exploration and before mutation, call reliability_draft with contract_kind (general or code), the objective, and a concise, non-secret context summary. Review its assessment. For general work, pass the returned draft_receipt and exact objective, claims, and checks unchanged to reliability_begin. For code work with required trusted profiles, pass those exact fields to reliability_begin_code; required profiles are injected before the draft receipt is created. The auxiliary model has no tools or certification authority. Do not bypass, edit, reuse, or impersonate its receipt.`
+    : mode === 'manual'
+      ? `Contract authorship mode is manual. Do not invent a claim set. Use only a contract supplied by the user or a reviewed reference source. The runtime records this as caller-declared provenance, not authenticated human approval. If no such contract is available, explain that manual input is required. Deployment-required code profiles may still be opened through reliability_begin_code.`
+      : `Contract authorship mode is current-agent. Draft the claims and checks yourself, then preflight them with reliability_assess before reliability_begin.`
+  return `Reliability Governor is available for evidence-gated completion.
 
-For a substantive task with observable success criteria—especially code/file changes, tool workflows, or a user request for stable/reliable execution—map every success claim to evidence and call reliability_assess before reliability_begin. Use the smallest independent evidence set that covers every claim; multiple checks over one file or tool are one source, not independent corroboration. The governor evaluates coverage and checks without using an LLM and records durable receipts.
+${authoring}
+
+For a substantive task with observable success criteria—especially code/file changes, tool workflows, or a user request for stable/reliable execution—map every success claim to evidence before opening a contract. Use the smallest independent evidence set that covers every claim; multiple checks over one file or tool are one source, not independent corroboration. The governor evaluates coverage and checks without using an LLM and records durable receipts.
 
 For coding tasks, first load the reliability-code-verification skill. If required trusted profiles are configured, use reliability_begin_code instead of reliability_begin. Run every required profile through reliability_code_verify after implementation; ordinary shell/test calls are useful diagnostics but do not substitute for trusted profile evidence.
 
@@ -242,6 +281,7 @@ While a contract is active:
 Coverage is structural, not semantic: it cannot detect a success claim omitted from the contract or decide whether a claim faithfully represents the user's intent. Prefer independently reviewed claim sets for high-impact work. Treat a review-required assessment as a reason to revise the contract or decline certification, never as permission to proceed without evidence.
 
 Use no contract for casual conversation or work with no meaningful observable completion condition.`
+}
 
 function requireAgent(exec: { agent?: Agent }): Agent {
   if (exec.agent === undefined) throw new Error('reliability tools require an Agent-backed session')
@@ -254,6 +294,52 @@ function failures(results: ReliabilityCheckResult[]): string {
 
 function asJson(value: unknown): JsonValue {
   return value as JsonValue
+}
+
+function callerAuthorship(mode: 'current-agent' | 'manual'): ReliabilityContractAuthorship {
+  return { version: 1, mode, assurance: 'caller-declared' }
+}
+
+function requireBoundDraft(
+  draft: ReliabilityContractDraft | undefined,
+  receipt: string | undefined,
+  objective: string,
+  claims: ReliabilityClaim[],
+  checks: ReliabilityCheck[],
+): ReliabilityContractDraft {
+  if (receipt === undefined || receipt.trim().length === 0) {
+    throw new Error('auxiliary-model mode requires draft_receipt from reliability_draft')
+  }
+  if (draft === undefined || draft.receipt !== receipt) {
+    throw new Error('draft_receipt does not match the latest successful reliability_draft event')
+  }
+  const proposed = { objective: objective.trim(), claims, checks }
+  const recorded = { objective: draft.objective, claims: draft.claims, checks: draft.checks }
+  if (canonicalJsonForComparison(proposed) !== canonicalJsonForComparison(recorded)) {
+    throw new Error('objective, claims, and checks must exactly match the receipt-bound auxiliary draft')
+  }
+  return draft
+}
+
+function bindAuxiliaryDraft(
+  session: Session,
+  draft: ReliabilityContractDraft | undefined,
+  receipt: string | undefined,
+  objective: string,
+  claims: ReliabilityClaim[],
+  checks: ReliabilityCheck[],
+): { draft: ReliabilityContractDraft; authorship: ReliabilityContractAuthorship } {
+  const boundDraft = requireBoundDraft(draft, receipt, objective, claims, checks)
+  if (session.events.some(event => event.type === 'reliability/contract'
+    && event.data.version === 3
+    && event.data.authorship.mode === 'auxiliary-model'
+    && event.data.authorship.draftReceipt === boundDraft.receipt)) {
+    throw new Error('draft_receipt has already been used to open a contract; request a fresh draft')
+  }
+  return {
+    draft: boundDraft,
+    authorship: { ...boundDraft.authorship, draftReceipt: boundDraft.receipt },
+  }
 }
 
 async function verify(
@@ -288,7 +374,53 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
   const config = resolveConfig(rawConfig)
 
   registerCodeVerificationSkill(ctx)
-  ctx.systemPrompt.section({ name: 'reliability:policy', order: 118, text: PROMPT })
+  ctx.systemPrompt.section({ name: 'reliability:policy', order: 118, text: promptFor(config.contractAuthoring.mode) })
+
+  if (config.contractAuthoring.mode === 'auxiliary-model') {
+    const authorConfig = config.contractAuthoring
+    ctx.tools.register(defineTool({
+      name: 'reliability_draft',
+      description: 'Ask the configured isolated auxiliary model for a bounded claim/check draft. It receives text only, has no tools, cannot mutate the workspace, cannot certify, and is never used as an outcome judge. Do not include secrets in context.',
+      parameters: {
+        contract_kind: {
+          type: 'string', enum: ['general', 'code'], required: true,
+          description: 'Use code when the contract must include every deployment-required trusted code-verification profile.',
+        },
+        objective: { type: 'string', required: true, description: 'Concise outcome the future contract must cover.' },
+        context: { type: 'string', description: 'Optional concise read-only facts needed to identify claims, paths, tool names, and constraints. Never include secrets.' },
+      },
+      output: {
+        schema: { type: 'json' },
+        render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute(args, exec) {
+        const session = requireAgent(exec).session
+        const result = await draftContract(ctx, {
+          contractKind: args.contract_kind,
+          objective: args.objective,
+          ...(args.context === undefined ? {} : { context: args.context }),
+          availableCodeProfiles: config.codeVerificationProfiles.map(profile => ({
+            id: profile.id,
+            description: profile.description,
+            required: profile.required,
+          })),
+        }, authorConfig, config, exec.signal)
+        session.append('reliability/contract-draft', result.draft)
+        return asJson({
+          status: result.draft.coverageAssessment.status === 'ready' ? 'drafted' : 'review-required',
+          draft: {
+            contract_kind: result.draft.contractKind,
+            objective: result.draft.objective,
+            claims: result.toolClaims,
+            checks: result.draft.checks,
+            draft_receipt: result.draft.receipt,
+          },
+          assessment: result.draft.coverageAssessment,
+          authorship: result.draft.authorship,
+        })
+      },
+    }))
+  }
 
   ctx.tools.register(defineTool({
     name: 'reliability_assess',
@@ -322,6 +454,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       claims: { type: 'array', required: true, items: CLAIM_SCHEMA, description: 'Every declared success claim mapped to supporting check ids.' },
       checks: { type: 'array', required: true, items: CHECK_SCHEMA, description: 'Deterministic assertions that collectively prove the outcome.' },
       max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
+      draft_receipt: { type: 'string', description: 'Required in auxiliary-model mode; returned by reliability_draft.' },
     },
     output: {
       schema: { type: 'json' },
@@ -340,10 +473,20 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       if (assessment.status !== 'ready') {
         return asJson({ status: 'review-required', assessment })
       }
+      const binding = config.contractAuthoring.mode === 'auxiliary-model'
+        ? bindAuxiliaryDraft(session, state.latestDraft, args.draft_receipt, args.objective, claims, checks)
+        : undefined
+      const authorship: ReliabilityContractAuthorship = binding === undefined
+        ? callerAuthorship(config.contractAuthoring.mode as 'current-agent' | 'manual')
+        : binding.authorship
+      if (config.contractAuthoring.mode !== 'auxiliary-model' && args.draft_receipt !== undefined) {
+        throw new Error('draft_receipt is accepted only in auxiliary-model mode')
+      }
       const contract = createContract({
         objective: args.objective,
         claims,
         checks,
+        authorship,
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
       session.append('reliability/contract', contract)
@@ -358,6 +501,9 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       objective: { type: 'string', required: true, description: 'Concrete code outcome to prove.' },
       additional_checks: { type: 'array', items: CHECK_SCHEMA, description: 'Optional deterministic artifact or policy checks in addition to all required code profiles.' },
       additional_claims: { type: 'array', items: CLAIM_SCHEMA, description: 'Optional claims for additional checks. Required profile checks are mapped automatically.' },
+      claims: { type: 'array', items: CLAIM_SCHEMA, description: 'Exact full claim set returned by reliability_draft; used only in auxiliary-model mode.' },
+      checks: { type: 'array', items: CHECK_SCHEMA, description: 'Exact full check set returned by reliability_draft; used only in auxiliary-model mode.' },
+      draft_receipt: { type: 'string', description: 'Exact code-draft receipt; required only in auxiliary-model mode.' },
       max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
     },
     output: {
@@ -374,21 +520,53 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       if (requiredProfiles.length === 0) {
         throw new Error('no required trusted code-verification profiles are configured; ask the deployment owner to configure codeVerificationProfiles')
       }
-      const requiredChecks: ReliabilityCheck[] = requiredProfiles.map(profile => ({
-        id: `code-profile-${profile.id}`,
-        kind: 'code_verification_succeeded',
-        profile: profile.id,
-      }))
-      const requiredProfileClaim: ReliabilityClaim = {
-        id: 'required-code-verification',
-        statement: 'Every deployment-required trusted code-verification profile passes on the final workspace state',
-        importance: 'critical',
-        verification: 'deterministic',
-        checkIds: requiredChecks.map(check => check.id),
-        minimumIndependentSources: 1,
+      let checks: ReliabilityCheck[]
+      let claims: ReliabilityClaim[]
+      let authorship: ReliabilityContractAuthorship
+      if (config.contractAuthoring.mode === 'auxiliary-model') {
+        if (args.additional_checks !== undefined || args.additional_claims !== undefined) {
+          throw new Error('auxiliary-model code contracts require the exact full claims/checks draft, not additional fields')
+        }
+        checks = (args.checks ?? []) as ReliabilityCheck[]
+        claims = normalizeClaims((args.claims ?? []) as ToolClaim[])
+        const binding = bindAuxiliaryDraft(
+          session,
+          state.latestDraft,
+          args.draft_receipt,
+          args.objective,
+          claims,
+          checks,
+        )
+        if (binding.draft.contractKind !== 'code') {
+          throw new Error('reliability_begin_code requires a reliability_draft with contract_kind code')
+        }
+        for (const profile of requiredProfiles) {
+          if (!checks.some(check => check.kind === 'code_verification_succeeded' && check.profile === profile.id)) {
+            throw new Error(`receipt-bound code draft omitted required profile: ${profile.id}`)
+          }
+        }
+        authorship = binding.authorship
+      } else {
+        if (args.claims !== undefined || args.checks !== undefined || args.draft_receipt !== undefined) {
+          throw new Error('claims, checks, and draft_receipt are accepted by reliability_begin_code only in auxiliary-model mode')
+        }
+        const requiredChecks: ReliabilityCheck[] = requiredProfiles.map(profile => ({
+          id: `code-profile-${profile.id}`,
+          kind: 'code_verification_succeeded',
+          profile: profile.id,
+        }))
+        const requiredProfileClaim: ReliabilityClaim = {
+          id: 'required-code-verification',
+          statement: 'Every deployment-required trusted code-verification profile passes on the final workspace state',
+          importance: 'critical',
+          verification: 'deterministic',
+          checkIds: requiredChecks.map(check => check.id),
+          minimumIndependentSources: 1,
+        }
+        checks = [...requiredChecks, ...((args.additional_checks ?? []) as ReliabilityCheck[])]
+        claims = [requiredProfileClaim, ...normalizeClaims((args.additional_claims ?? []) as ToolClaim[])]
+        authorship = callerAuthorship(config.contractAuthoring.mode)
       }
-      const checks = [...requiredChecks, ...((args.additional_checks ?? []) as ReliabilityCheck[])]
-      const claims = [requiredProfileClaim, ...normalizeClaims((args.additional_claims ?? []) as ToolClaim[])]
       validateChecks(checks, config)
       const assessment = assessContractCoverage({ objective: args.objective, claims, checks })
       if (assessment.status !== 'ready') {
@@ -398,6 +576,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
         objective: args.objective,
         claims,
         checks,
+        authorship,
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
       session.append('reliability/contract', contract)

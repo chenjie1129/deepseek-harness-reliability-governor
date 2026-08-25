@@ -17,6 +17,7 @@
 | 证据 | 当前结果 | 可以支持的结论 |
 | --- | --- | --- |
 | 无密钥 Harness AgentLoop 故障矩阵 | 9 个 Case × 10 次重复 × 2 组 = 180 次；机制门禁通过；governed 组 false completion 和 false certification 均为 0 | 在脚本化故障下，active 合约和生命周期能够执行已经声明的确定性检查。 |
+| 脚本化辅助作者边界测试 | 严格解析、无工具调用、来源记录和收据绑定均通过 | 只能证明隔离机制，不代表真实模型能写出更好的合约。 |
 | 已预注册的供应商模型基准 | 20 个任务 × 5 次重复 × 3 组；尚未运行 | 目前不能声称真实模型质量、时延、成本或净效用已经改善。 |
 
 本项目主动寻找能够推翻当前设计的证据。独立 Oracle 测试方法和隐私要求见 [Beta 反馈协议](FEEDBACK.md)。
@@ -30,6 +31,7 @@ Harness 已有 goal 和迭代工作流能力，但其当前文档明确没有提
 ## 提供的能力
 
 - `reliability_assess`：在检查实际结果之前，预览已声明目标的覆盖率、独立证据源数量和脆弱证据警告。
+- `reliability_draft`：仅在可选的 `auxiliary-model` 模式中，用一次有边界的纯文本模型调用起草 Claim/Check，并记录来源和收据。
 - `reliability_begin`：建立一个明确、持久的完成合约。
 - `reliability_begin_code`：建立代码合约，并自动加入部署方要求的全部可信验证 Profile。
 - `reliability_verify`：立即运行确定性检查。
@@ -39,13 +41,15 @@ Harness 已有 goal 和迭代工作流能力，但其当前文档明确没有提
 - `reliability_code_verify`：通过 Harness 托管的 subprocess 和 sandbox 执行固定 Profile。
 - `agent/turn-stopping` 门禁：active 合约在 Agent 结束前自动检查；失败时仅引导修复失败项，达到上限后 fail closed。
 
-v0.4 支持 `file_exists`、`file_absent`、`file_contains`、`file_not_contains`、`file_equals`、`json_equals`、`tool_succeeded`、`tool_not_called`、`code_verification_succeeded` 和 `no_tool_errors` 十种检查。
+v0.5 支持 `file_exists`、`file_absent`、`file_contains`、`file_not_contains`、`file_equals`、`json_equals`、`tool_succeeded`、`tool_not_called`、`code_verification_succeeded` 和 `no_tool_errors` 十种检查。
 
-文件验证只通过 Harness 的 `ctx.fs` 做只读检查。可信代码 Profile 的完整 argv 由部署方配置，模型只能提交 Profile ID；执行必须经过 Harness 的 `ctx.subprocess`、`ctx.sandbox` 和 `ctx.sandboxPolicy`。插件不会调用另一个大模型裁判、不会重试供应商请求，也不会自动重复业务副作用。
+文件验证只通过 Harness 的 `ctx.fs` 做只读检查。可信代码 Profile 的完整 argv 由部署方配置，模型只能提交 Profile ID；执行必须经过 Harness 的 `ctx.subprocess`、`ctx.sandbox` 和 `ctx.sandboxPolicy`。插件不会让大模型担任结果裁判、不会主动重试或切换供应商，也不会自动重复业务副作用。可选的辅助模型只负责发现验收条件，没有认证权。
 
 任何后续的非 Governor 工具调用（包括 Code Mode 内的嵌套调用），以及使用 `workspace-write` 的其他可信 Profile，都会保守地使之前的可信验证结果失效，从而避免“测试通过后又改坏代码”仍被认证。由于 Harness 尚未为任意工具提供权威副作用元数据，即使后续调用实际只读，也需要重新运行可信 Profile。
 
-v0.4 在激活前把每条已声明的成功条件映射到检查，并按独立证据权威而不是检查数量计数：同一个文件上的两个检查只算一个证据源。需要人工判断、当前不支持或独立证据不足的 Claim 会返回 `review-required`；精确字面量、仅存在性和轨迹类检查会给出脆弱性警告。详见[合约覆盖说明](docs/CONTRACT_COVERAGE.md)。这个能力只能检查已声明的 Claim，无法发现模型漏写的需求，也无法证明 Claim 忠实表达了用户意图。
+v0.5 在激活前把每条已声明的成功条件映射到检查，并按独立证据权威而不是检查数量计数：同一个文件上的两个检查只算一个证据源。需要人工判断、当前不支持或独立证据不足的 Claim 会返回 `review-required`；精确字面量、仅存在性和轨迹类检查会给出脆弱性警告。详见[合约覆盖说明](docs/CONTRACT_COVERAGE.md)。这个能力只能检查已声明的 Claim，无法发现模型漏写的需求，也无法证明 Claim 忠实表达了用户意图。
+
+合约作者有三种模式：默认 `current-agent` 不增加模型调用；`auxiliary-model` 通过 Harness 已有的模型路由做一次隔离起草；`manual` 用于用户或已审查的参考合约，但只能诚实记录为“调用方声明”，不能伪装成已认证的人工审批。辅助草稿必须与持久收据完全一致才能激活。详见[合约作者配置](docs/CONTRACT_AUTHORING.md)。
 
 ## 安装
 
@@ -56,7 +60,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -72,9 +76,14 @@ maxFileBytes: 1048576
 autoVerifyAtTurnStop: true
 codeVerificationMaxOutputBytes: 65536
 codeVerificationProfiles: []
+contractAuthoring:
+  mode: current-agent
+  maxInputBytes: 32768
+  maxOutputTokens: 3000
+  timeoutMs: 45000
 ```
 
-代码 Profile 默认为空，因为不同仓库的测试门禁不同。请按 [可信代码验证](docs/CODE_VERIFICATION.md) 配置经过审查的测试、类型检查和构建命令。内置 Skill 负责教模型如何工作；真正拥有判定权的是固定的运行时 Profile，而不是 Skill。
+代码 Profile 默认为空，因为不同仓库的测试门禁不同。请按 [可信代码验证](docs/CODE_VERIFICATION.md) 配置经过审查的测试、类型检查和构建命令。内置 Skill 负责教模型如何工作；真正拥有判定权的是固定的运行时 Profile，而不是 Skill。若启用 `auxiliary-model`，供应商凭据、Endpoint 和模型目录仍在 Harness Models 中配置；Governor 只保存精确的 provider route 和 model ID，不提供自动 fallback。
 
 ## 重要边界
 
@@ -82,7 +91,7 @@ codeVerificationProfiles: []
 - 模型仍负责决定是否建立合约、以及哪些检查能代表成功；错误的合约仍可能验证错误目标。
 - 不产生 Harness 工具事件的工作区外部修改无法被检测；生产部署应隔离工作区并禁止并发外部写入。
 - 本插件改善结果可靠性，不保证每次回答措辞完全一致。
-- v0.4 不判断视觉质量、超出配置检查范围的开放式语义正确性、被遗漏的 Claim、缺少权威证据的远程状态，也不会猜测未知副作用是否成功。
+- v0.5 不判断视觉质量、超出配置检查范围的开放式语义正确性、被遗漏的 Claim、缺少权威证据的远程状态，也不会猜测未知副作用是否成功；辅助作者也不能突破这些边界。
 - 含本插件自定义必要事件的会话，在恢复时应继续安装本组合包。
 
 开发验证：

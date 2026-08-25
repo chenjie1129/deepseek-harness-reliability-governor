@@ -23,6 +23,7 @@ for (const required of [
   'docs/COMMUNITY_POST.md',
   `docs/RELEASE_NOTES_V${manifest.version}.md`,
   'docs/CONTRACT_COVERAGE.md',
+  'docs/CONTRACT_AUTHORING.md',
   'docs/assets/keyless-benchmark.svg',
   'evaluations/cases.json',
   'evaluations/keyless-benchmark.json',
@@ -55,6 +56,7 @@ for (const source of [
   'src/governor.ts',
   'src/types.ts',
   'src/coverage.ts',
+  'src/contract-author.ts',
   'src/receipts.ts',
   'src/code-verifier.ts',
 ]) {
@@ -68,6 +70,14 @@ const codeVerifier = await readFile(new URL('src/code-verifier.ts', root), 'utf8
 if (!codeVerifier.includes('ctx.subprocess') || !codeVerifier.includes('ctx.sandbox.confine')
   || !codeVerifier.includes('ctx.sandboxPolicy.resolve')) {
   throw new Error('trusted code verifier does not use every required Harness capability seam')
+}
+const contractAuthor = await readFile(new URL('src/contract-author.ts', root), 'utf8')
+if (!contractAuthor.includes('ctx.llm.stream') || !contractAuthor.includes('tools: []')) {
+  throw new Error('auxiliary contract author does not use the provider-neutral no-tools LLM seam')
+}
+if (contractAuthor.includes('fetch(') || contractAuthor.includes("from 'node:http")
+  || contractAuthor.includes("from 'node:https")) {
+  throw new Error('auxiliary contract author bypasses the Harness LLM seam')
 }
 if (!(manifest.files ?? []).includes('skills')) throw new Error('packed package omits the bundled coding skill')
 if (!(manifest.files ?? []).includes('examples')) throw new Error('packed package omits the code-profile example')

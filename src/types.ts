@@ -75,6 +75,48 @@ export interface ReliabilityCoverageAssessment {
   receipt: string
 }
 
+export type ReliabilityContractAuthoringMode = 'current-agent' | 'auxiliary-model' | 'manual'
+
+/** How a claim set entered the governor. This is provenance, not proof that the claims are complete. */
+export interface ReliabilityAuxiliaryDraftAuthorship {
+  version: 1
+  mode: 'auxiliary-model'
+  assurance: 'draft-receipt-bound'
+  provider: string
+  model: string
+  reasoningEffort?: string
+  promptVersion: string
+  inputReceipt: string
+  inputBytes: number
+  usage?: {
+    inputTokens: number
+    outputTokens: number
+    cacheReadTokens?: number
+    cacheWriteTokens?: number
+    reasoningTokens?: number
+  }
+}
+
+export type ReliabilityContractAuthorship =
+  | {
+    version: 1
+    mode: 'current-agent' | 'manual'
+    assurance: 'caller-declared'
+  }
+  | (ReliabilityAuxiliaryDraftAuthorship & { draftReceipt: string })
+
+/** Privacy-minimized record of one successful auxiliary contract-authoring call. */
+export interface ReliabilityContractDraft {
+  version: 1
+  contractKind: 'general' | 'code'
+  objective: string
+  claims: ReliabilityClaim[]
+  checks: ReliabilityCheck[]
+  coverageAssessment: ReliabilityCoverageAssessment
+  authorship: ReliabilityAuxiliaryDraftAuthorship
+  receipt: string
+}
+
 /** Privacy-minimized result of one deployment-controlled code verifier run. */
 export interface CodeVerificationResult {
   version: 1
@@ -113,7 +155,15 @@ export interface ReliabilityContractV2 extends ReliabilityContractBase {
   coverageAssessment: ReliabilityCoverageAssessment
 }
 
-export type ReliabilityContract = ReliabilityContractV1 | ReliabilityContractV2
+/** Claim-covered contract with explicit authorship provenance. */
+export interface ReliabilityContractV3 extends ReliabilityContractBase {
+  version: 3
+  claims: ReliabilityClaim[]
+  coverageAssessment: ReliabilityCoverageAssessment
+  authorship: ReliabilityContractAuthorship
+}
+
+export type ReliabilityContract = ReliabilityContractV1 | ReliabilityContractV2 | ReliabilityContractV3
 
 /** One check's privacy-minimized deterministic verdict. */
 export interface ReliabilityCheckResult {
@@ -152,10 +202,13 @@ declare module '@deepseek-ai/dsh-session/types' {
     'reliability/terminal': ReliabilityTerminal
     /** Records one trusted, deployment-configured code verification result. */
     'reliability/code-verification': CodeVerificationResult
+    /** Records one bounded auxiliary-model claim/check draft without raw prompts or reasoning. */
+    'reliability/contract-draft': ReliabilityContractDraft
   }
 }
 
 export interface FoldedReliabilityState {
+  latestDraft?: ReliabilityContractDraft
   contract?: ReliabilityContract
   attempts: ReliabilityAttempt[]
   terminal?: ReliabilityTerminal
@@ -163,12 +216,15 @@ export interface FoldedReliabilityState {
 
 /** Reconstruct the latest governor state from the durable session log. */
 export function foldReliability(events: readonly SessionEvent[]): FoldedReliabilityState {
+  let latestDraft: ReliabilityContractDraft | undefined
   let contract: ReliabilityContract | undefined
   let attempts: ReliabilityAttempt[] = []
   let terminal: ReliabilityTerminal | undefined
 
   for (const event of events) {
-    if (event.type === 'reliability/contract') {
+    if (event.type === 'reliability/contract-draft') {
+      latestDraft = event.data
+    } else if (event.type === 'reliability/contract') {
       contract = event.data
       attempts = []
       terminal = undefined
@@ -180,6 +236,7 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
   }
 
   return {
+    ...(latestDraft === undefined ? {} : { latestDraft }),
     ...(contract === undefined ? {} : { contract }),
     attempts,
     ...(terminal === undefined ? {} : { terminal }),

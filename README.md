@@ -17,6 +17,7 @@ It does **not** make an LLM deterministic. It makes a narrower promise: while a 
 | Evidence | Current result | Claim allowed |
 | --- | --- | --- |
 | Keyless Harness AgentLoop fault matrix | 9 cases × 10 trials × 2 arms = 180 runs; mechanism gates pass; zero governed false completions and false certifications | The active contract and lifecycle enforce declared deterministic checks under scripted faults. |
+| Scripted auxiliary-author boundary tests | Strict parsing, no-tool calls, provenance, and receipt binding pass | The isolation mechanism works with a scripted stream; this is not evidence that a live model writes better contracts. |
 | Pre-registered provider-backed benchmark | 20 tasks × 5 trials × 3 arms planned; not run | No live-model quality, latency, cost, or net-utility claim yet. |
 
 The project is deliberately looking for evidence against its design. See [Beta feedback](FEEDBACK.md) for the independent-oracle protocol and privacy rules.
@@ -30,6 +31,7 @@ Harness already has goal and iterative workflow plugins, but their current docum
 ## What it adds
 
 - `reliability_assess` — preview declared-claim coverage, independent-source counts, and brittle-evidence warnings without evaluating task output.
+- `reliability_draft` — in optional `auxiliary-model` mode, request one bounded text-only claim/check draft and record its provenance and receipt.
 - `reliability_begin` — open one explicit completion contract.
 - `reliability_begin_code` — open a code contract that automatically includes every deployment-required trusted verification profile.
 - `reliability_verify` — run deterministic checks immediately.
@@ -39,7 +41,7 @@ Harness already has goal and iterative workflow plugins, but their current docum
 - `reliability_code_verify` — execute one immutable profile through Harness-managed subprocess and sandbox services.
 - `agent/turn-stopping` enforcement — verify before an active contract is allowed to settle, then steer a bounded repair or truthfully report certification/exhaustion.
 
-Supported checks in v0.4:
+Supported checks in v0.5:
 
 | Check | Pass condition |
 | --- | --- |
@@ -54,13 +56,15 @@ Supported checks in v0.4:
 | `code_verification_succeeded` | The latest required results from a named deployment-configured verifier profile succeeded after the last non-governor tool call. |
 | `no_tool_errors` | No model-facing tool result after the contract began is an error. |
 
-File checks are read-only through Harness `ctx.fs`. Trusted code profiles receive exact deployment-authored argv and execute only through Harness `ctx.subprocess`, `ctx.sandbox`, and `ctx.sandboxPolicy`; the model supplies only a profile ID. The plugin never calls an LLM judge, retries a provider, or repeats a business action.
+File checks are read-only through Harness `ctx.fs`. Trusted code profiles receive exact deployment-authored argv and execute only through Harness `ctx.subprocess`, `ctx.sandbox`, and `ctx.sandboxPolicy`; the model supplies only a profile ID. The plugin never uses an LLM as the outcome judge, initiates a provider retry/fallback, or repeats a business action. Optional auxiliary authorship is requirement discovery only and has no certification authority.
 
 Trusted verifier evidence is invalidated conservatively by any later non-governor tool call, including nested Code Mode dispatches, and by a later different verifier profile with `workspace-write` access. This prevents a test result from certifying code that the agent or another verifier changed afterward. Because Harness does not expose authoritative side-effect metadata for arbitrary tools, even a later read-only tool call requires the trusted profile to be rerun.
 
 `file_contains` and `no_tool_errors` intentionally have narrow meanings. The policy warns the model not to use an exact literal for equivalent-output requirements and not to treat a recovered intermediate tool error as evidence that the final result failed. The live benchmark includes JSON-format equivalence and a recoverable-tool-error task to measure those authorship mistakes rather than assume them away.
 
-Before activation, v0.4 maps every declared success claim to checks and counts independent evidence authorities rather than raw checks. Two checks over one file count as one source. `human-required`, `unsupported`, and under-supported claims produce `review-required`; brittle checks produce visible warnings. See [Contract coverage](docs/CONTRACT_COVERAGE.md). Coverage is structural: it cannot detect a requirement the model omitted or prove that a claim faithfully represents the user's intent.
+Before activation, v0.5 maps every declared success claim to checks and counts independent evidence authorities rather than raw checks. Two checks over one file count as one source. `human-required`, `unsupported`, and under-supported claims produce `review-required`; brittle checks produce visible warnings. See [Contract coverage](docs/CONTRACT_COVERAGE.md). Coverage is structural: it cannot detect a requirement the model omitted or prove that a claim faithfully represents the user's intent.
+
+Contract authorship is configurable. The zero-setup default is `current-agent`; `auxiliary-model` routes one isolated draft call through Harness's existing provider/model layer; `manual` is for a user or reviewed reference contract but is honestly labeled caller-declared, not authenticated. Auxiliary drafts must match a durable receipt exactly before activation. See [Contract authoring](docs/CONTRACT_AUTHORING.md).
 
 ## Install
 
@@ -71,7 +75,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -91,9 +95,16 @@ The shipped bundle layer mounts one plugin row:
         autoVerifyAtTurnStop: true
         codeVerificationMaxOutputBytes: 65536
         codeVerificationProfiles: []
+        contractAuthoring:
+          mode: current-agent
+          maxInputBytes: 32768
+          maxOutputTokens: 3000
+          timeoutMs: 45000
 ```
 
 The empty code-profile list is a fail-safe default because repositories have different checks. Configure reviewed test/typecheck/build argv as described in [Trusted code verification](docs/CODE_VERIFICATION.md). The bundled `reliability-code-verification` skill teaches the workflow; the runtime profile, not the skill, is the independent judge.
+
+Keep `current-agent` unless you specifically want an extra authoring call. For `auxiliary-model`, first configure credentials and the exact provider route in Harness Models, then add only `provider`, `model`, and optional `reasoningEffort` under `contractAuthoring`; the governor never stores provider credentials. There is no automatic route fallback.
 
 ## Example contract
 
@@ -160,10 +171,10 @@ The keyless benchmark proves the governor's enforcement mechanics using the real
 - The model still chooses whether a task needs a contract and which checks express success. A bad contract can certify the wrong thing.
 - Out-of-band workspace changes that produce no Harness tool event are not detected; use isolated workspaces and prevent concurrent external writers.
 - Deterministic checks improve outcome reliability, not wording consistency.
-- v0.4 does not judge visual quality, semantic correctness beyond configured checks, omitted claims, remote state without authoritative evidence, or unknown side-effect outcomes.
+- v0.5 does not judge visual quality, semantic correctness beyond configured checks, omitted claims, remote state without authoritative evidence, or unknown side-effect outcomes. Auxiliary authorship does not remove these limits.
 - Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.
 
-See [Contract coverage](docs/CONTRACT_COVERAGE.md), [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
+See [Contract authoring](docs/CONTRACT_AUTHORING.md), [Contract coverage](docs/CONTRACT_COVERAGE.md), [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
 
 ## License
 

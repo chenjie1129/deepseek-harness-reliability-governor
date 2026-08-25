@@ -18,7 +18,7 @@ The following copy follows the official category requirements: one project, an `
 
 ## Reliability Governor
 
-AI agents can say “done” while the requested artifact or tool evidence disagrees. Reliability Governor is an opt-in DeepSeek Harness bundle that changes completion from a model assertion into an explicit evidence decision. v0.4 first maps each declared success claim to independent evidence sources, then permits activation only when structural coverage is ready:
+AI agents can say “done” while the requested artifact or tool evidence disagrees. Reliability Governor is an opt-in DeepSeek Harness bundle that changes completion from a model assertion into an explicit evidence decision. v0.5 first maps each declared success claim to independent evidence sources, then permits activation only when structural coverage is ready:
 
 - `certified` — all declared observable checks passed;
 - `exhausted` — checks still failed after a bounded repair budget;
@@ -34,6 +34,8 @@ The package ships a native `dsh.bundle` patch. Its Cordis plugin registers cover
 
 `reliability_assess` reports declared-claim coverage, distinct evidence authorities, brittle-check warnings, and a content receipt without judging task output. Two checks over one file count as one source. It cannot detect requirements omitted from the claim list, so the live protocol retains independently authored reference contracts.
 
+v0.5 also adds optional receipt-bound contract drafting. The default task agent can remain the author with no extra call, or a configured provider-neutral auxiliary model can make one bounded text-only draft call with no tools, workspace access, repair loop, fallback, or certification authority. This isolation is scripted-test evidence only; no claim is made yet that a live auxiliary model improves contract quality.
+
 ### Current evidence and boundaries
 
 The checked-in keyless suite runs nine fault classes ten times in baseline and governed arms through the real Harness AgentLoop: 180 scripted runs. It currently passes its mechanism gates with zero governed false completions and zero false certifications. This proves the enforcement path under scripted faults—it is **not** evidence that a natural-language model became more reliable.
@@ -47,7 +49,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```

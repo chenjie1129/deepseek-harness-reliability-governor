@@ -11,3 +11,8 @@
         autoVerifyAtTurnStop: true
         codeVerificationMaxOutputBytes: 65536
         codeVerificationProfiles: []
+        contractAuthoring:
+          mode: current-agent
+          maxInputBytes: 32768
+          maxOutputTokens: 3000
+          timeoutMs: 45000

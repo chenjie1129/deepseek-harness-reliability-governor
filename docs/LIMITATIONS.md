@@ -17,6 +17,12 @@ A `review-required` preflight is not an active contract, so the turn-stopping ho
 
 Coverage percentages are not truth probabilities. A single authoritative oracle can be stronger than several correlated observations, while an incorrect test can remain incorrect no matter how many times it runs. The report therefore gates on complete declared-claim coverage and explicit source requirements rather than a raw count threshold.
 
+Optional auxiliary authorship does not remove this gap. A second model can discover a requirement the task agent missed, but it can also omit the same requirement, follow misleading context, or choose brittle checks. It is correlated stochastic planning, not an independent oracle. Receipt binding proves that activation used the recorded draft; it does not prove that the draft was correct.
+
+`manual` mode is caller-declared provenance. Because a model-facing tool invocation can reproduce the same arguments as a human, the plugin cannot authenticate human review. Deployments that require approval must enforce it through an external signed policy, protected configuration, or a separate human-approval capability.
+
+The standard Harness log normally records tool-call arguments. Although the custom auxiliary draft event excludes raw context and auxiliary reasoning, any context supplied to `reliability_draft` may be durable elsewhere in the session. Never put secrets or private source in that field.
+
 Evidence-source identity is a pre-execution structural proxy. Paths are normalized lexically but not resolved through the filesystem during assessment, and verifier profiles are distinct by configured ID. Symlink aliases, duplicated profile commands, shared upstream dependencies, and other hidden correlations can therefore overstate real independence.
 
 ## Coding verification still depends on test quality

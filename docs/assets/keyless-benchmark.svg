@@ -14,7 +14,7 @@
   <circle cx="1130" cy="80" r="220" fill="#2b74ff" opacity="0.08"/>
   <circle cx="110" cy="680" r="260" fill="#2dd4bf" opacity="0.06"/>
 
-  <text x="72" y="72" fill="#8ba3bd" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">UNOFFICIAL DEEPSEEK HARNESS PLUGIN · v0.4.0</text>
+  <text x="72" y="72" fill="#8ba3bd" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">UNOFFICIAL DEEPSEEK HARNESS PLUGIN · v0.5.0</text>
   <text x="72" y="124" fill="#f8fbff" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="42" font-weight="700">A model saying “done” is not evidence.</text>
   <text x="72" y="160" fill="#b9c9d9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22">Reliability Governor turns completion into an observable, bounded decision.</text>
 

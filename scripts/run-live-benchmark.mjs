@@ -27,7 +27,7 @@ import {
 
 const root = new URL('../', import.meta.url)
 const defaultHarnessRoot = fileURLToPath(new URL('../../deepseek-harness-main/', import.meta.url))
-const defaultPlugin = fileURLToPath(new URL('../chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz', import.meta.url))
+const defaultPlugin = fileURLToPath(new URL('../chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz', import.meta.url))
 const defaultOutput = fileURLToPath(new URL('../evaluations/latest-live-report.json', import.meta.url))
 const manifestUrl = new URL('evaluations/live-benchmark.json', root)
 const preregistrationUrl = new URL('evaluations/live-benchmark.preregistered.json', root)

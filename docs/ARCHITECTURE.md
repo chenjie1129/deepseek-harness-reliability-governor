@@ -8,6 +8,7 @@ The plugin optimizes for **verified-or-abstain**, not deterministic prose. It na
 inactive
    |
    | reliability_assess: ready
+   | or receipt-bound reliability_draft: ready
    | reliability_begin / reliability_begin_code
    v
 active -- check passes ------------------------> certified
@@ -24,7 +25,7 @@ active -- check passes ------------------------> certified
 
 Only `active` causes turn-stopping enforcement. Every transition is reconstructed from the append-only session log.
 
-`reliability_assess` is a preflight, not a lifecycle state. It groups checks by evidence authority, maps them to declared claims, and returns `ready` or `review-required` without inspecting output or writing a contract event. A current `reliability_begin` call stores a version 2 contract containing the claims and immutable coverage assessment. Version 1 contract events remain readable for session compatibility.
+`reliability_assess` is a preflight, not a lifecycle state. It groups checks by evidence authority, maps them to declared claims, and returns `ready` or `review-required` without inspecting output or writing a contract event. New `reliability_begin` calls store a version 3 contract containing claims, immutable coverage assessment, and explicit authorship provenance. Version 1 and 2 contract events remain readable for session compatibility.
 
 ## DeepSeek Harness integration rules
 
@@ -32,7 +33,7 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 
 - one standalone npm bundle declares `dsh.bundle.patch` and inserts one Cordis plugin row;
 - ESM and strict TypeScript with explicit `.js` relative imports;
-- `inject` declares tools, prompt, filesystem, skill, subprocess, sandbox, and sandbox-policy seams;
+- `inject` declares tools, prompt, filesystem, skill, subprocess, sandbox, sandbox-policy, and provider-neutral LLM seams;
 - tool definitions use `ctx.tools.register(defineTool(...))`;
 - policy text uses `ctx.systemPrompt.section(...)` and is therefore model-visible;
 - bounded continuation uses the serial `agent/turn-stopping` lifecycle hook and `agent.steer(...)`;
@@ -49,12 +50,13 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 - `reliability/attempt` records trigger, ordered results, verdict, and a stable content receipt.
 - `reliability/terminal` records certified/exhausted/abstained, reason, linked attempt receipt when present, and terminal receipt.
 - `reliability/code-verification` records an immutable profile receipt, exit/timing/sandbox facts, privacy-minimized output receipts, and the trusted verdict.
+- `reliability/contract-draft` records a successful auxiliary draft, coverage assessment, route/prompt provenance, usage when available, and a receipt. It excludes auxiliary reasoning and does not duplicate raw context.
 
 These are required events because they alter whether a session may truthfully settle. A runtime that cannot interpret them should refuse continuation rather than silently discard the contract.
 
 ## Evidence boundaries
 
-Contract coverage counts authorities, not assertions. Normalized aliases of one workspace path share a source; all ordinary tool and trajectory checks conservatively share the Harness tool-event source; and trusted verifier checks share a source by profile. At least one claim must be critical, and every declared claim must be deterministic and meet its `minimumIndependentSources` value before a version 2 contract can activate. The assessment warns about brittle check kinds but does not block on warnings.
+Contract coverage counts authorities, not assertions. Normalized aliases of one workspace path share a source; all ordinary tool and trajectory checks conservatively share the Harness tool-event source; and trusted verifier checks share a source by profile. At least one claim must be critical, and every declared claim must be deterministic and meet its `minimumIndependentSources` value before a version 3 contract can activate. The assessment warns about brittle check kinds but does not block on warnings.
 
 This is structural coverage only. The runtime cannot infer a requirement omitted from the claim list or decide whether the claim text matches the user's intent. Reference-authored contracts and human review remain stronger sources of semantic completeness.
 
@@ -85,6 +87,14 @@ potential mutations. This may require an unnecessary verifier rerun, but fails
 closed instead of certifying stale evidence. Out-of-band writes that create no
 session event remain a deployment isolation concern.
 
+## Isolated contract authorship
+
+The default and manual modes make no additional model call. In `auxiliary-model` mode, `reliability_draft` makes one bounded provider-neutral `ctx.llm.stream` invocation with one user text block, a fixed system prompt, an empty tool list, an exact configured provider/model route, and no automatic fallback. It is a subcall, not an Agent: it has no workspace, session loop, tools, repair path, or terminal authority.
+
+Only strict JSON claims/checks are accepted. Non-text actions, malformed output, abnormal finishes, oversize input/stream data, unconfigured verifier profiles, and coverage errors fail closed. For a `code` draft, deployment-required profile checks and a critical claim are inserted deterministically before the successful draft event receives its receipt. `reliability_begin` and `reliability_begin_code` require that receipt and a canonical match of the objective, normalized claims, and checks; the version 3 contract records the receipt and rejects reuse. This prevents the task agent from weakening or replaying the draft after the call.
+
+The standard Harness tool log may already contain `reliability_draft` arguments, so context is documented as non-secret. The custom event does not duplicate it and never stores raw auxiliary reasoning. See [Contract authoring](CONTRACT_AUTHORING.md).
+
 ## Isolated coding judgment
 
 `reliability_begin_code` injects every deployment profile marked `required`; the model cannot remove them. `reliability_code_verify` accepts only a profile ID. Commands and arguments never enter its model-authored parameter schema.
@@ -99,6 +109,6 @@ The governor never repeats a tool itself. This is intentional: generic automatic
 
 Harness currently exposes no authoritative, universal side-effect classification for arbitrary tools. The governor therefore cannot prove that a model-directed repair is reversible. Deployments must keep automatic repair inside disposable/snapshotted workspaces and require human confirmation or abstention for external, irreversible, or non-idempotent actions. The live benchmark records an explicit repair class per task; prompt-level classification is measured behavior, not a runtime safety proof.
 
-## Why no LLM judge
+## Why no LLM outcome judge
 
-An LLM evaluator adds cost, latency, correlated blind spots, prompt-injection exposure, and another stochastic decision. Deterministic graders are preferred whenever an outcome can be checked mechanically. Semantic and visual evaluators can be added later as explicitly lower-confidence check providers, not mixed into the trusted deterministic core.
+An LLM outcome evaluator adds cost, latency, correlated blind spots, prompt-injection exposure, and another stochastic decision. Deterministic graders are preferred whenever an outcome can be checked mechanically. v0.5 may use an LLM before mutation to propose what should be examined, but its output is only contract input and never pass/fail evidence. Semantic and visual evaluators can be added later as explicitly lower-confidence check providers, not mixed into the trusted deterministic core.

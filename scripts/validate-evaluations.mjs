@@ -72,7 +72,7 @@ for (const testCase of keyless.cases) {
 
 const liveUrl = evaluationUrl('live-benchmark.json')
 const live = JSON.parse(await readFile(liveUrl, 'utf8'))
-if (live.version !== 3) throw new Error('live benchmark version must be 3')
+if (live.version !== 4) throw new Error('live benchmark version must be 4')
 if (!Array.isArray(live.cases) || live.cases.length !== 20) throw new Error('live benchmark must contain exactly 20 cases')
 if (!Number.isSafeInteger(live.defaultTrials) || live.defaultTrials < 5) throw new Error('live benchmark needs at least 5 default trials')
 requireUniqueIds(live.cases, 'live benchmark')
@@ -94,7 +94,7 @@ for (const testCase of live.cases) {
 }
 
 const protocol = live.preregistration
-if (protocol?.protocolId !== 'reliability-governor-live-v3-2026-08-25') throw new Error('live benchmark needs the v3 protocol id')
+if (protocol?.protocolId !== 'reliability-governor-live-v4-2026-08-25') throw new Error('live benchmark needs the v4 protocol id')
 if (JSON.stringify(protocol.arms) !== JSON.stringify(['baseline', 'governed-model-contract', 'governed-reference-contract'])) {
   throw new Error('live benchmark needs the three pre-registered arms')
 }

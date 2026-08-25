@@ -7,6 +7,16 @@ import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { apply } from '../src/index.js'
 import { foldReliability } from '../src/types.js'
+import type { ReliabilityCheck } from '../src/types.js'
+
+interface ReturnedToolClaim {
+  id: string
+  statement: string
+  importance: 'critical' | 'important' | 'minor'
+  verification: 'deterministic' | 'human-required' | 'unsupported'
+  check_ids: string[]
+  minimum_independent_sources?: number
+}
 
 function fakeFs(files: Record<string, string>) {
   const entries = new Map(Object.entries(files).map(([path, content]) => [`/workspace/${path}`, content]))
@@ -38,7 +48,7 @@ function fakeFs(files: Record<string, string>) {
   } as Pick<FileSystem, 'resolve' | 'contains' | 'stat' | 'lstat' | 'readBytes'>
 }
 
-function harness(files: Record<string, string> = {}) {
+function harness(files: Record<string, string> = {}, llmChunks?: unknown[]) {
   const tools: ToolDefinition[] = []
   const sections: Array<{ name: string; text: string }> = []
   const skillProviders: unknown[] = []
@@ -57,6 +67,10 @@ function harness(files: Record<string, string> = {}) {
     runnerFailureRules: [],
     policy,
   }))
+  const llmStream = vi.fn((_options: unknown) => (async function* () {
+    if (llmChunks === undefined) throw new Error('unexpected auxiliary model call')
+    for (const chunk of llmChunks) yield chunk
+  })())
   let stopping: ((payload: { agent: Agent; turn: number; signal: AbortSignal }) => Promise<void>) | undefined
   const context = {
     fs: fakeFs(files),
@@ -73,6 +87,7 @@ function harness(files: Record<string, string> = {}) {
     sandboxPolicy: {
       resolve: () => ({ mode: 'workspace-write', workspaceRoot: '/workspace' }),
     },
+    llm: { stream: llmStream },
     on: (name: string, listener: typeof stopping) => {
       if (name === 'agent/turn-stopping') stopping = listener
       return () => undefined
@@ -86,6 +101,7 @@ function harness(files: Record<string, string> = {}) {
     resolveExecutable,
     spawn,
     confine,
+    llmStream,
     getStopping: () => stopping,
   }
 }
@@ -138,6 +154,7 @@ describe('DeepSeek Harness plugin composition', () => {
       'reliability_code_verify',
     ])
     expect(mounted.getStopping()).toBeTypeOf('function')
+    expect(mounted.llmStream).not.toHaveBeenCalled()
   })
 
   it('preflights claim coverage and refuses to activate a structurally insufficient contract', async () => {
@@ -310,8 +327,13 @@ describe('DeepSeek Harness plugin composition', () => {
       kind: 'code_verification_succeeded',
       profile: 'unit-tests',
     })
-    expect(state.contract?.version).toBe(2)
-    expect(state.contract?.version === 2 && state.contract.coverageAssessment.status).toBe('ready')
+    expect(state.contract?.version).toBe(3)
+    expect(state.contract?.version === 3 && state.contract.coverageAssessment.status).toBe('ready')
+    expect(state.contract?.version === 3 && state.contract.authorship).toEqual({
+      version: 1,
+      mode: 'current-agent',
+      assurance: 'caller-declared',
+    })
     expect(state.terminal?.status).toBe('certified')
     expect(session.events.filter(event => event.type === 'reliability/code-verification')).toHaveLength(1)
   })
@@ -377,5 +399,256 @@ describe('DeepSeek Harness plugin composition', () => {
       { objective: 'finish code' },
       execution(agent, 'reliability_begin_code'),
     )).rejects.toThrow('no required trusted code-verification profiles')
+  })
+
+  it('uses one text-only auxiliary call, stores a privacy-minimized draft event, and binds begin to its receipt', async () => {
+    const modelJson = JSON.stringify({
+      claims: [{
+        id: 'result-ready',
+        statement: 'The result file exactly matches READY',
+        importance: 'critical',
+        verification: 'deterministic',
+        check_ids: ['exact-result'],
+      }],
+      checks: [{ id: 'exact-result', kind: 'file_equals', path: 'result.txt', text: 'READY\n' }],
+    })
+    const mounted = harness({}, [
+      { type: 'block-end', index: 0, block: { type: 'reasoning', text: 'PRIVATE REASONING' } },
+      { type: 'block-end', index: 1, block: { type: 'text', text: modelJson } },
+      { type: 'usage', usage: { inputTokens: 100, outputTokens: 80 } },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ])
+    apply(mounted.context, {
+      contractAuthoring: {
+        mode: 'auxiliary-model',
+        provider: 'configured-route',
+        model: 'contract-model',
+        reasoningEffort: 'low',
+      },
+    })
+    expect(mounted.tools.map(tool => tool.name)).toContain('reliability_draft')
+    const session = createSession('auxiliary-author')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+    const response = await findTool(mounted.tools, 'reliability_draft').execute({
+      contract_kind: 'general',
+      objective: 'produce exact result',
+      context: 'PRIVATE CONTEXT: result.txt is the requested artifact',
+    }, execution(agent, 'reliability_draft')) as unknown as {
+      status: string
+      draft: { objective: string; claims: ReturnedToolClaim[]; checks: ReliabilityCheck[]; draft_receipt: string }
+    }
+
+    expect(response.status).toBe('drafted')
+    expect(mounted.llmStream).toHaveBeenCalledOnce()
+    const request = mounted.llmStream.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(request).toMatchObject({
+      provider: 'configured-route',
+      model: 'contract-model',
+      reasoningEffort: 'low',
+      tools: [],
+      maxTokens: 3_000,
+    })
+    expect(request).not.toHaveProperty('purpose')
+    expect(request).not.toHaveProperty('temperature')
+    expect(JSON.stringify(session.events)).not.toContain('PRIVATE CONTEXT')
+    expect(JSON.stringify(session.events)).not.toContain('PRIVATE REASONING')
+    expect(foldReliability(session.events).latestDraft?.receipt).toBe(response.draft.draft_receipt)
+
+    const begin = findTool(mounted.tools, 'reliability_begin')
+    await expect(begin.execute({
+      objective: response.draft.objective,
+      claims: response.draft.claims,
+      checks: response.draft.checks,
+    }, execution(agent, 'reliability_begin'))).rejects.toThrow('requires draft_receipt')
+    await expect(begin.execute({
+      objective: response.draft.objective,
+      claims: response.draft.claims,
+      checks: [{ ...response.draft.checks[0], path: 'other.txt' }],
+      draft_receipt: response.draft.draft_receipt,
+    }, execution(agent, 'reliability_begin'))).rejects.toThrow('must exactly match')
+
+    const activated = await begin.execute({
+      objective: response.draft.objective,
+      claims: response.draft.claims,
+      checks: response.draft.checks,
+      draft_receipt: response.draft.draft_receipt,
+    }, execution(agent, 'reliability_begin'))
+    expect(activated).toMatchObject({
+      status: 'active',
+      contract: {
+        version: 3,
+        authorship: {
+          mode: 'auxiliary-model',
+          assurance: 'draft-receipt-bound',
+          provider: 'configured-route',
+          model: 'contract-model',
+          draftReceipt: response.draft.draft_receipt,
+        },
+      },
+    })
+
+    await findTool(mounted.tools, 'reliability_abstain').execute({
+      reason: 'close the first contract for replay testing',
+    }, execution(agent, 'reliability_abstain'))
+    await expect(begin.execute({
+      objective: response.draft.objective,
+      claims: response.draft.claims,
+      checks: response.draft.checks,
+      draft_receipt: response.draft.draft_receipt,
+    }, execution(agent, 'reliability_begin'))).rejects.toThrow('already been used')
+  })
+
+  it('rejects an auxiliary model action instead of executing or recording it', async () => {
+    const mounted = harness({}, [
+      {
+        type: 'block-end',
+        index: 0,
+        block: { type: 'tool-call', id: 'call-1', name: 'write_file', arguments: '{"path":"owned"}' },
+      },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ])
+    apply(mounted.context, {
+      contractAuthoring: { mode: 'auxiliary-model', provider: 'route', model: 'author' },
+    })
+    const session = createSession('auxiliary-action')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+
+    await expect(findTool(mounted.tools, 'reliability_draft').execute({
+      contract_kind: 'general',
+      objective: 'produce a file',
+    }, execution(agent, 'reliability_draft'))).rejects.toThrow('non-text action')
+    expect(session.events.filter(event => event.type === 'reliability/contract-draft')).toHaveLength(0)
+    expect(foldReliability(session.events).contract).toBeUndefined()
+  })
+
+  it('rejects unconfigured verifier profiles authored by the auxiliary model', async () => {
+    const mounted = harness({}, [
+      {
+        type: 'block-end',
+        index: 0,
+        block: {
+          type: 'text',
+          text: JSON.stringify({
+            claims: [{
+              id: 'tests', statement: 'Imaginary tests pass', importance: 'critical',
+              verification: 'deterministic', check_ids: ['tests'],
+            }],
+            checks: [{ id: 'tests', kind: 'code_verification_succeeded', profile: 'imaginary-tests' }],
+          }),
+        },
+      },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ])
+    apply(mounted.context, {
+      contractAuthoring: { mode: 'auxiliary-model', provider: 'route', model: 'author' },
+    })
+    const session = createSession('auxiliary-profile-allowlist')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+
+    await expect(findTool(mounted.tools, 'reliability_draft').execute({
+      contract_kind: 'general',
+      objective: 'make tests pass',
+    }, execution(agent, 'reliability_draft'))).rejects.toThrow('unconfigured code-verification profile')
+    expect(session.events.filter(event => event.type === 'reliability/contract-draft')).toHaveLength(0)
+  })
+
+  it('aborts an auxiliary author that exceeds its configured time bound', async () => {
+    const mounted = harness()
+    mounted.llmStream.mockImplementationOnce((request: unknown) => (async function* () {
+      const signal = (request as { signal: AbortSignal }).signal
+      await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }))
+    })())
+    apply(mounted.context, {
+      contractAuthoring: {
+        mode: 'auxiliary-model', provider: 'route', model: 'author', timeoutMs: 1,
+      },
+    })
+    const session = createSession('auxiliary-timeout')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+
+    await expect(findTool(mounted.tools, 'reliability_draft').execute({
+      contract_kind: 'general',
+      objective: 'produce bounded draft',
+    }, execution(agent, 'reliability_draft'))).rejects.toThrow('timed out')
+    expect(session.events.filter(event => event.type === 'reliability/contract-draft')).toHaveLength(0)
+  })
+
+  it('keeps manual mode model-free and labels its provenance as caller-declared', async () => {
+    const mounted = harness()
+    apply(mounted.context, { contractAuthoring: { mode: 'manual' } })
+    expect(mounted.tools.map(tool => tool.name)).not.toContain('reliability_draft')
+    expect(mounted.sections[0]?.text).toContain('not authenticated human approval')
+    const session = createSession('manual-author')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+    const response = await findTool(mounted.tools, 'reliability_begin').execute({
+      objective: 'use a reviewed contract',
+      claims: [{
+        id: 'artifact', statement: 'The artifact exists', importance: 'critical',
+        verification: 'deterministic', check_ids: ['artifact'],
+      }],
+      checks: [{ id: 'artifact', kind: 'file_exists', path: 'artifact.txt' }],
+    }, execution(agent, 'reliability_begin'))
+
+    expect(response).toMatchObject({
+      status: 'active',
+      contract: { authorship: { mode: 'manual', assurance: 'caller-declared' } },
+    })
+    expect(mounted.llmStream).not.toHaveBeenCalled()
+  })
+
+  it('injects required code profiles into an auxiliary code draft before receipt binding', async () => {
+    const modelJson = JSON.stringify({
+      claims: [{
+        id: 'artifact', statement: 'The implementation file exists', importance: 'critical',
+        verification: 'deterministic', check_ids: ['artifact'],
+      }],
+      checks: [{ id: 'artifact', kind: 'file_exists', path: 'src/index.ts' }],
+    })
+    const mounted = harness({}, [
+      { type: 'block-end', index: 0, block: { type: 'text', text: modelJson } },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ])
+    apply(mounted.context, {
+      contractAuthoring: { mode: 'auxiliary-model', provider: 'route', model: 'author' },
+      codeVerificationProfiles: [{
+        id: 'unit-tests', description: 'Run trusted tests.', command: 'npm', args: ['test'], required: true,
+      }],
+    })
+    const session = createSession('auxiliary-code')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+    const response = await findTool(mounted.tools, 'reliability_draft').execute({
+      contract_kind: 'code',
+      objective: 'implement the requested code change',
+    }, execution(agent, 'reliability_draft')) as unknown as {
+      draft: {
+        contract_kind: 'code'
+        objective: string
+        claims: ReturnedToolClaim[]
+        checks: ReliabilityCheck[]
+        draft_receipt: string
+      }
+    }
+
+    expect(response.draft.contract_kind).toBe('code')
+    expect(response.draft.checks).toContainEqual({
+      id: 'code-profile-unit-tests', kind: 'code_verification_succeeded', profile: 'unit-tests',
+    })
+    expect(response.draft.claims).toContainEqual(expect.objectContaining({
+      id: 'required-code-verification', check_ids: ['code-profile-unit-tests'],
+    }))
+    const activated = await findTool(mounted.tools, 'reliability_begin_code').execute({
+      objective: response.draft.objective,
+      claims: response.draft.claims,
+      checks: response.draft.checks,
+      draft_receipt: response.draft.draft_receipt,
+    }, execution(agent, 'reliability_begin_code'))
+    expect(activated).toMatchObject({
+      status: 'active',
+      requiredProfiles: ['unit-tests'],
+      contract: {
+        version: 3,
+        authorship: { mode: 'auxiliary-model', draftReceipt: response.draft.draft_receipt },
+      },
+    })
   })
 })

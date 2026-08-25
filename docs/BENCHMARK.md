@@ -7,6 +7,8 @@ This project separates two claims:
 
 The checked-in keyless benchmark tests the first claim. Only the pre-registered provider-backed benchmark can test the second. Neither makes an LLM deterministic.
 
+v0.5's scripted auxiliary-author tests prove call isolation, strict parsing, provenance, and receipt enforcement only. The current three-arm live protocol compares task-agent-authored contracts with independently authored reference contracts; it does not isolate the new auxiliary-author mode. A future decision-quality revision must add a pre-registered auxiliary-author arm with a fixed provider/model route and separately report omitted claims, false certification, false exhaustion, false abstention, latency, and token cost before the project claims that auxiliary authorship is net-positive.
+
 ## Current keyless evidence
 
 Run:
@@ -31,7 +33,7 @@ Every case/trial block has three arms:
 
 Reference-contract fidelity is measured from the durable contract event. A missing or modified contract is not silently accepted. Execution order uses a fixed three-way rotation within every block. Each run gets a new workspace and persisted Harness session. No outcome may be discarded.
 
-The v3 runner also records the contract coverage status, critical and weighted declared-claim coverage, independent-source count, finding codes, and assessment receipt. These fields audit structural evidence sufficiency. They do not establish that a model-authored claim set is semantically complete; the model-versus-reference arm difference remains the measurement for that authorship risk.
+The v4 runner also records the contract coverage status, critical and weighted declared-claim coverage, independent-source count, finding codes, and assessment receipt. These fields audit structural evidence sufficiency. They do not establish that a model-authored claim set is semantically complete; the model-versus-reference arm difference remains the measurement for that authorship risk.
 
 The full default is 20 cases × 5 trials × 3 arms = **300 agent runs**. Provider cost depends on the configured model.
 
@@ -52,7 +54,7 @@ npm run benchmark:live -- \
   --max-cases 2 \
   --trials 1 \
   --harness-root /absolute/path/to/deepseek-harness \
-  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz \
+  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz \
   --output /absolute/path/to/pilot-report.json
 ```
 

@@ -27,11 +27,13 @@ The protocol is intentionally small. It is a product-feedback exercise, not a re
 Copy this compact record into the issue form when useful:
 
 ```yaml
-plugin_version: 0.4.0
+plugin_version: 0.5.0
 harness_version_or_commit: ""
 os: ""
 profile: ""
 model_and_provider: ""
+contract_authoring_mode: current-agent | auxiliary-model | manual
+auxiliary_author_route: "" # provider/model ids only; never credentials
 task_summary: ""
 contract_summary: ""
 terminal: certified | exhausted | abstained | active | no_contract
