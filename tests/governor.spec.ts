@@ -7,6 +7,7 @@ import {
   evaluateContract,
   receiptFor,
 } from '../src/governor.js'
+import { assessContractCoverage, evidenceSourceFor } from '../src/coverage.js'
 import type { ReliabilityContract } from '../src/types.js'
 
 const LIMITS = { maxAttempts: 3, maxChecks: 20, maxFileBytes: 1024 }
@@ -92,6 +93,114 @@ describe('reliability governor core', () => {
       checks: [{ id: 'x', kind: 'no_tool_errors' }],
       maxAttempts: 4,
     }, 0, LIMITS)).toThrow('1 to 3')
+  })
+
+  it('reports claim coverage from independent evidence sources rather than raw check count', () => {
+    const checks = [
+      { id: 'exists', kind: 'file_exists' as const, path: 'result.txt' },
+      { id: 'literal', kind: 'file_contains' as const, path: './result.txt', text: 'READY' },
+    ]
+    const assessment = assessContractCoverage({
+      objective: 'produce a corroborated result',
+      claims: [{
+        id: 'result-correct',
+        statement: 'The result exists and is correct',
+        importance: 'critical',
+        verification: 'deterministic',
+        checkIds: ['exists', 'literal'],
+        minimumIndependentSources: 2,
+      }],
+      checks,
+    })
+
+    expect(evidenceSourceFor(checks[0])).toBe('workspace-file:result.txt')
+    expect(evidenceSourceFor(checks[1])).toBe('workspace-file:result.txt')
+    expect(assessment.status).toBe('review-required')
+    expect(assessment.coverage.critical).toEqual({ covered: 0, total: 1, percent: 0 })
+    expect(assessment.evidence.independentSourceCount).toBe(1)
+    expect(assessment.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'insufficient_independent_sources', severity: 'error' }),
+      expect.objectContaining({ code: 'exact_literal_brittleness', severity: 'warning' }),
+      expect.objectContaining({ code: 'declared_claims_only', severity: 'warning' }),
+    ]))
+    expect(assessment.receipt).toMatch(/^sha256:/)
+  })
+
+  it('requires a critical claim and treats ordinary tool checks as one trajectory source', () => {
+    const checks = [
+      { id: 'deploy', kind: 'tool_succeeded' as const, tool: 'deploy' },
+      { id: 'clean', kind: 'no_tool_errors' as const },
+    ]
+    const assessment = assessContractCoverage({
+      objective: 'deploy cleanly',
+      claims: [{
+        id: 'deployment', statement: 'Deployment tool events are clean', importance: 'important',
+        verification: 'deterministic', checkIds: ['deploy', 'clean'], minimumIndependentSources: 2,
+      }],
+      checks,
+    })
+
+    expect(new Set(checks.map(evidenceSourceFor))).toEqual(new Set(['session-trajectory:tool-events']))
+    expect(assessment.status).toBe('review-required')
+    expect(assessment.coverage.critical).toEqual({ covered: 0, total: 0, percent: 0 })
+    expect(assessment.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'missing_critical_claim' }),
+      expect.objectContaining({ code: 'insufficient_independent_sources' }),
+    ]))
+  })
+
+  it('marks deterministic, human-only, and unsupported claims separately', () => {
+    const assessment = assessContractCoverage({
+      objective: 'judge all declared dimensions',
+      claims: [
+        {
+          id: 'artifact', statement: 'The artifact exactly matches the reference', importance: 'critical',
+          verification: 'deterministic', checkIds: ['exact'],
+        },
+        {
+          id: 'beauty', statement: 'The artifact is beautiful', importance: 'important',
+          verification: 'human-required', checkIds: [],
+        },
+        {
+          id: 'remote', statement: 'The unobservable remote state changed', importance: 'minor',
+          verification: 'unsupported', checkIds: [],
+        },
+      ],
+      checks: [{ id: 'exact', kind: 'file_equals', path: 'result.txt', text: 'READY\n' }],
+    })
+
+    expect(assessment.status).toBe('review-required')
+    expect(assessment.claims.map(claim => claim.sufficient)).toEqual([true, false, false])
+    expect(assessment.coverage.weighted).toEqual({ coveredWeight: 5, totalWeight: 9, percent: 55.56 })
+    expect(assessment.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'claim_requires_human', claimId: 'beauty' }),
+      expect.objectContaining({ code: 'claim_unsupported', claimId: 'remote' }),
+    ]))
+  })
+
+  it('creates version 2 contracts only when every declared claim is structurally covered', () => {
+    const ready = createContract({
+      objective: 'produce exact output',
+      claims: [{
+        id: 'exact', statement: 'Output exactly matches the accepted value', importance: 'critical',
+        verification: 'deterministic', checkIds: ['exact-output'],
+      }],
+      checks: [{ id: 'exact-output', kind: 'file_equals', path: 'result.txt', text: 'READY\n' }],
+    }, 4, LIMITS)
+    expect(ready.version).toBe(2)
+    expect(ready.version === 2 && ready.coverageAssessment.status).toBe('ready')
+
+    expect(() => createContract({
+      objective: 'produce independently corroborated output',
+      claims: [{
+        id: 'exact', statement: 'Output is correct', importance: 'critical', verification: 'deterministic',
+        checkIds: ['exists', 'exact'], minimumIndependentSources: 2,
+      }],
+      checks: [
+        { id: 'exists', kind: 'file_exists', path: 'result.txt' },
+        { id: 'exact', kind: 'file_equals', path: 'result.txt', text: 'READY\n' },
+      ],
+    }, 0, LIMITS)).toThrow('contract coverage requires review')
   })
 
   it('proves file existence, absence, content, equality, and JSON values without executing anything', async () => {

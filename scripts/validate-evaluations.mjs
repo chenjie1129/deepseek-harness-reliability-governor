@@ -55,11 +55,24 @@ for (const testCase of keyless.cases) {
   for (const path of Object.keys(testCase.setup?.files ?? {})) requireSafeRelativePath(path, `${testCase.id} fixture path`)
   if (testCase.oracle?.path !== undefined) requireSafeRelativePath(testCase.oracle.path, `${testCase.id} oracle path`)
   if (!keylessOracleKinds.has(testCase.oracle?.kind)) throw new Error(`${testCase.id} has unsupported keyless oracle`)
+  for (const step of testCase.governed) {
+    if (step.type === 'tool' && step.name === 'reliability_begin') {
+      if (!Array.isArray(step.arguments?.claims) || step.arguments.claims.length === 0) {
+        throw new Error(`${testCase.id} reliability_begin needs declared claims`)
+      }
+      const ids = new Set((step.arguments.checks ?? []).map(check => check.id))
+      for (const claim of step.arguments.claims) {
+        if (!Array.isArray(claim.check_ids) || claim.check_ids.some(id => !ids.has(id))) {
+          throw new Error(`${testCase.id} claim references an unknown check`)
+        }
+      }
+    }
+  }
 }
 
 const liveUrl = evaluationUrl('live-benchmark.json')
 const live = JSON.parse(await readFile(liveUrl, 'utf8'))
-if (live.version !== 2) throw new Error('live benchmark version must be 2')
+if (live.version !== 3) throw new Error('live benchmark version must be 3')
 if (!Array.isArray(live.cases) || live.cases.length !== 20) throw new Error('live benchmark must contain exactly 20 cases')
 if (!Number.isSafeInteger(live.defaultTrials) || live.defaultTrials < 5) throw new Error('live benchmark needs at least 5 default trials')
 requireUniqueIds(live.cases, 'live benchmark')
@@ -81,7 +94,7 @@ for (const testCase of live.cases) {
 }
 
 const protocol = live.preregistration
-if (protocol?.protocolId !== 'reliability-governor-live-v2-2026-08-23') throw new Error('live benchmark needs the v2 protocol id')
+if (protocol?.protocolId !== 'reliability-governor-live-v3-2026-08-25') throw new Error('live benchmark needs the v3 protocol id')
 if (JSON.stringify(protocol.arms) !== JSON.stringify(['baseline', 'governed-model-contract', 'governed-reference-contract'])) {
   throw new Error('live benchmark needs the three pre-registered arms')
 }

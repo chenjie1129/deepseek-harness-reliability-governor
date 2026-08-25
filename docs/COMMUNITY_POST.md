@@ -18,7 +18,7 @@ The following copy follows the official category requirements: one project, an `
 
 ## Reliability Governor
 
-AI agents can say “done” while the requested artifact or tool evidence disagrees. Reliability Governor is an opt-in DeepSeek Harness bundle that changes completion from a model assertion into an explicit evidence decision:
+AI agents can say “done” while the requested artifact or tool evidence disagrees. Reliability Governor is an opt-in DeepSeek Harness bundle that changes completion from a model assertion into an explicit evidence decision. v0.4 first maps each declared success claim to independent evidence sources, then permits activation only when structural coverage is ready:
 
 - `certified` — all declared observable checks passed;
 - `exhausted` — checks still failed after a bounded repair budget;
@@ -30,7 +30,9 @@ It **does not make an LLM deterministic**. It makes the narrower completion deci
 
 ### How it integrates with DSH
 
-The package ships a native `dsh.bundle` patch. Its Cordis plugin registers contract, status, verification, abstention, and trusted-code-profile tools; hooks `agent/turn-stopping`; performs read-only file checks through `ctx.fs`; and runs deployment-authored code profiles only through Harness subprocess, sandbox, and sandbox-policy services. Attempts and terminal receipts are stored as durable session events.
+The package ships a native `dsh.bundle` patch. Its Cordis plugin registers coverage assessment, contract, status, verification, abstention, and trusted-code-profile tools; hooks `agent/turn-stopping`; performs read-only file checks through `ctx.fs`; and runs deployment-authored code profiles only through Harness subprocess, sandbox, and sandbox-policy services. Attempts and terminal receipts are stored as durable session events.
+
+`reliability_assess` reports declared-claim coverage, distinct evidence authorities, brittle-check warnings, and a content receipt without judging task output. Two checks over one file count as one source. It cannot detect requirements omitted from the claim list, so the live protocol retains independently authored reference contracts.
 
 ### Current evidence and boundaries
 
@@ -45,7 +47,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.3.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```

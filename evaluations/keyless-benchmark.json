@@ -27,6 +27,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Create result.txt",
+            "claims": [{ "id": "artifact-created", "statement": "result.txt exists", "importance": "critical", "verification": "deterministic", "check_ids": ["artifact"] }],
             "checks": [{ "id": "artifact", "kind": "file_exists", "path": "result.txt" }],
             "max_attempts": 2
           }
@@ -56,6 +57,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Make status.txt contain READY",
+            "claims": [{ "id": "status-ready", "statement": "status.txt contains the required READY literal", "importance": "critical", "verification": "deterministic", "check_ids": ["literal"] }],
             "checks": [{ "id": "literal", "kind": "file_contains", "path": "status.txt", "text": "READY" }],
             "max_attempts": 2
           }
@@ -85,6 +87,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Remove stale.tmp",
+            "claims": [{ "id": "stale-removed", "statement": "stale.tmp is absent", "importance": "critical", "verification": "deterministic", "check_ids": ["absence"] }],
             "checks": [{ "id": "absence", "kind": "file_absent", "path": "stale.tmp" }],
             "max_attempts": 2
           }
@@ -114,6 +117,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Confirm ready.txt exists",
+            "claims": [{ "id": "ready-exists", "statement": "ready.txt exists", "importance": "critical", "verification": "deterministic", "check_ids": ["artifact"] }],
             "checks": [{ "id": "artifact", "kind": "file_exists", "path": "ready.txt" }],
             "max_attempts": 2
           }
@@ -142,6 +146,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Complete one successful safe_action call",
+            "claims": [{ "id": "safe-action-succeeded", "statement": "At least one safe_action call reports success", "importance": "critical", "verification": "deterministic", "check_ids": ["safe-call"] }],
             "checks": [{ "id": "safe-call", "kind": "tool_succeeded", "tool": "safe_action", "minCount": 1 }],
             "max_attempts": 2
           }
@@ -173,6 +178,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Finish without invoking forbidden_action",
+            "claims": [{ "id": "forbidden-action-avoided", "statement": "forbidden_action is never invoked", "importance": "critical", "verification": "deterministic", "check_ids": ["forbidden-call"] }],
             "checks": [{ "id": "forbidden-call", "kind": "tool_not_called", "tool": "forbidden_action" }],
             "max_attempts": 2
           }
@@ -206,6 +212,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Publish after this task begins",
+            "claims": [{ "id": "fresh-publish", "statement": "A publish call succeeds after the contract begins", "importance": "critical", "verification": "deterministic", "check_ids": ["fresh-publish"] }],
             "checks": [{ "id": "fresh-publish", "kind": "tool_succeeded", "tool": "publish", "minCount": 1 }],
             "max_attempts": 2
           }
@@ -235,6 +242,7 @@
           "name": "reliability_begin",
           "arguments": {
             "objective": "Prove universal subjective beauty",
+            "claims": [{ "id": "clean-local-trajectory", "statement": "The local tool trajectory has no errors", "importance": "critical", "verification": "deterministic", "check_ids": ["local-tool-health"] }],
             "checks": [{ "id": "local-tool-health", "kind": "no_tool_errors" }],
             "max_attempts": 2
           }

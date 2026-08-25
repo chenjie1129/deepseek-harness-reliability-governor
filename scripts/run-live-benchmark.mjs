@@ -27,7 +27,7 @@ import {
 
 const root = new URL('../', import.meta.url)
 const defaultHarnessRoot = fileURLToPath(new URL('../../deepseek-harness-main/', import.meta.url))
-const defaultPlugin = fileURLToPath(new URL('../chenjie1129-dsh-reliability-governor-plugin-0.3.0.tgz', import.meta.url))
+const defaultPlugin = fileURLToPath(new URL('../chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz', import.meta.url))
 const defaultOutput = fileURLToPath(new URL('../evaluations/latest-live-report.json', import.meta.url))
 const manifestUrl = new URL('evaluations/live-benchmark.json', root)
 const preregistrationUrl = new URL('evaluations/live-benchmark.preregistered.json', root)
@@ -176,7 +176,19 @@ function referenceContractFor(testCase, maxAttempts) {
     }
     return { id, ...check }
   })
-  return { objective: testCase.task, checks, max_attempts: maxAttempts }
+  return {
+    objective: testCase.task,
+    claims: [{
+      id: 'reference-outcome',
+      statement: testCase.task,
+      importance: 'critical',
+      verification: 'deterministic',
+      check_ids: checks.map(check => check.id),
+      minimum_independent_sources: 1,
+    }],
+    checks,
+    max_attempts: maxAttempts,
+  }
 }
 
 function promptFor(testCase, arm, referenceMaxAttempts) {
@@ -321,11 +333,21 @@ async function sessionMetrics(home, workspace) {
       contractStarted: contract !== undefined,
       contract: contract === undefined ? undefined : {
         objective: contract.objective,
+        claims: contract.claims,
         checks: contract.checks,
         maxAttempts: contract.maxAttempts,
       },
+      coverage: contract?.coverageAssessment === undefined ? undefined : {
+        status: contract.coverageAssessment.status,
+        criticalPercent: contract.coverageAssessment.coverage?.critical?.percent,
+        weightedPercent: contract.coverageAssessment.coverage?.weighted?.percent,
+        independentSourceCount: contract.coverageAssessment.evidence?.independentSourceCount,
+        findingCodes: contract.coverageAssessment.findings?.map(finding => finding.code) ?? [],
+        receipt: contract.coverageAssessment.receipt,
+      },
       contractHash: contract === undefined ? undefined : sha256(canonicalJson({
         objective: contract.objective,
+        claims: contract.claims,
         checks: contract.checks,
         maxAttempts: contract.maxAttempts,
       })),
@@ -436,6 +458,14 @@ async function runOne({
   const referenceContractMatch = arm !== 'governed-reference-contract' ? undefined : metrics.contract !== undefined
     && canonicalJson(metrics.contract) === canonicalJson({
       objective: expectedReference.objective,
+      claims: expectedReference.claims.map(claim => ({
+        id: claim.id,
+        statement: claim.statement,
+        importance: claim.importance,
+        verification: claim.verification,
+        checkIds: claim.check_ids,
+        minimumIndependentSources: claim.minimum_independent_sources,
+      })),
       checks: expectedReference.checks,
       maxAttempts: expectedReference.max_attempts,
     })

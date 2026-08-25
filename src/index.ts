@@ -20,7 +20,9 @@ import {
   appendTerminal,
   createContract,
   evaluateContract,
+  validateChecks,
 } from './governor.js'
+import { assessContractCoverage } from './coverage.js'
 import {
   resolveCodeVerificationProfiles,
   runCodeVerification,
@@ -31,9 +33,10 @@ import type {
 } from './code-verifier.js'
 import { registerCodeVerificationSkill } from './skill.js'
 import { foldReliability } from './types.js'
-import type { ReliabilityCheck, ReliabilityCheckResult } from './types.js'
+import type { ReliabilityCheck, ReliabilityCheckResult, ReliabilityClaim } from './types.js'
 
 export * from './governor.js'
+export * from './coverage.js'
 export * from './types.js'
 
 export const name = 'reliability-governor'
@@ -178,9 +181,52 @@ const CHECK_SCHEMA = {
   ],
 } as const
 
+const CLAIM_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    id: { type: 'string', required: true },
+    statement: { type: 'string', required: true },
+    importance: {
+      type: 'string',
+      enum: ['critical', 'important', 'minor'],
+      required: true,
+    },
+    verification: {
+      type: 'string',
+      enum: ['deterministic', 'human-required', 'unsupported'],
+      required: true,
+    },
+    check_ids: { type: 'array', required: true, items: { type: 'string' } },
+    minimum_independent_sources: { type: 'integer' },
+  },
+} as const
+
+interface ToolClaim {
+  id: string
+  statement: string
+  importance: ReliabilityClaim['importance']
+  verification: ReliabilityClaim['verification']
+  check_ids: string[]
+  minimum_independent_sources?: number
+}
+
+function normalizeClaims(claims: ToolClaim[]): ReliabilityClaim[] {
+  return claims.map(claim => ({
+    id: claim.id,
+    statement: claim.statement,
+    importance: claim.importance,
+    verification: claim.verification,
+    checkIds: claim.check_ids,
+    ...(claim.minimum_independent_sources === undefined
+      ? {}
+      : { minimumIndependentSources: claim.minimum_independent_sources }),
+  }))
+}
+
 const PROMPT = `Reliability Governor is available for evidence-gated completion.
 
-For a substantive task with observable success criteria—especially code/file changes, tool workflows, or a user request for stable/reliable execution—call reliability_begin before claiming completion. Choose only checks that prove the requested outcome. The governor evaluates checks without using an LLM and records durable receipts.
+For a substantive task with observable success criteria—especially code/file changes, tool workflows, or a user request for stable/reliable execution—map every success claim to evidence and call reliability_assess before reliability_begin. Use the smallest independent evidence set that covers every claim; multiple checks over one file or tool are one source, not independent corroboration. The governor evaluates coverage and checks without using an LLM and records durable receipts.
 
 For coding tasks, first load the reliability-code-verification skill. If required trusted profiles are configured, use reliability_begin_code instead of reliability_begin. Run every required profile through reliability_code_verify after implementation; ordinary shell/test calls are useful diagnostics but do not substitute for trusted profile evidence.
 
@@ -191,7 +237,9 @@ While a contract is active:
 - Use file_contains only for requirements that truly demand that literal. Prefer file_equals or json_equals when exact file or structured value semantics are intended.
 - Use no_tool_errors only when a clean error-free trajectory is itself required; a recovered intermediate error does not prove the final outcome failed.
 - Never repeat a non-idempotent external action merely because its outcome is unknown; inspect state or abstain instead.
-- If proof needs credentials, human judgment, or an unsupported check, call reliability_abstain and explain the limitation.
+- If coverage assessment says a claim needs credentials, human judgment, or an unsupported oracle, do not activate or claim completion; explain the limitation. If proof becomes unavailable after a contract is active, call reliability_abstain.
+
+Coverage is structural, not semantic: it cannot detect a success claim omitted from the contract or decide whether a claim faithfully represents the user's intent. Prefer independently reviewed claim sets for high-impact work. Treat a review-required assessment as a reason to revise the contract or decline certification, never as permission to proceed without evidence.
 
 Use no contract for casual conversation or work with no meaningful observable completion condition.`
 
@@ -243,10 +291,35 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
   ctx.systemPrompt.section({ name: 'reliability:policy', order: 118, text: PROMPT })
 
   ctx.tools.register(defineTool({
+    name: 'reliability_assess',
+    description: 'Preview whether declared success claims have enough distinct deterministic evidence before opening a contract. Several checks against one file, tool, or verifier profile count as one evidence source. This does not evaluate task output.',
+    parameters: {
+      objective: { type: 'string', required: true, description: 'Concise outcome the claims are meant to cover.' },
+      claims: { type: 'array', required: true, items: CLAIM_SCHEMA, description: 'Declared success claims and their supporting check ids.' },
+      checks: { type: 'array', required: true, items: CHECK_SCHEMA, description: 'Proposed deterministic assertions. May be empty when assessment should expose unsupported or human-only claims.' },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    execute(args) {
+      const checks = args.checks as ReliabilityCheck[]
+      validateChecks(checks, config, false)
+      const assessment = assessContractCoverage({
+        objective: args.objective,
+        claims: normalizeClaims(args.claims as ToolClaim[]),
+        checks,
+      })
+      return Promise.resolve(asJson({ status: assessment.status, assessment }))
+    },
+  }))
+
+  ctx.tools.register(defineTool({
     name: 'reliability_begin',
     description: 'Open one durable, evidence-gated completion contract for the current session. Use before claiming a substantive verifiable task is complete. Only deterministic checks are accepted; paths are workspace-relative.',
     parameters: {
       objective: { type: 'string', required: true, description: 'Concise outcome this contract must prove.' },
+      claims: { type: 'array', required: true, items: CLAIM_SCHEMA, description: 'Every declared success claim mapped to supporting check ids.' },
       checks: { type: 'array', required: true, items: CHECK_SCHEMA, description: 'Deterministic assertions that collectively prove the outcome.' },
       max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
     },
@@ -260,9 +333,17 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       if (state.contract !== undefined && state.terminal === undefined) {
         throw new Error(`contract ${state.contract.contractId} is still active; verify or abstain before opening another`)
       }
+      const checks = args.checks as ReliabilityCheck[]
+      const claims = normalizeClaims(args.claims as ToolClaim[])
+      validateChecks(checks, config)
+      const assessment = assessContractCoverage({ objective: args.objective, claims, checks })
+      if (assessment.status !== 'ready') {
+        return asJson({ status: 'review-required', assessment })
+      }
       const contract = createContract({
         objective: args.objective,
-        checks: args.checks as ReliabilityCheck[],
+        claims,
+        checks,
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
       session.append('reliability/contract', contract)
@@ -276,6 +357,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
     parameters: {
       objective: { type: 'string', required: true, description: 'Concrete code outcome to prove.' },
       additional_checks: { type: 'array', items: CHECK_SCHEMA, description: 'Optional deterministic artifact or policy checks in addition to all required code profiles.' },
+      additional_claims: { type: 'array', items: CLAIM_SCHEMA, description: 'Optional claims for additional checks. Required profile checks are mapped automatically.' },
       max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
     },
     output: {
@@ -297,9 +379,25 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
         kind: 'code_verification_succeeded',
         profile: profile.id,
       }))
+      const requiredProfileClaim: ReliabilityClaim = {
+        id: 'required-code-verification',
+        statement: 'Every deployment-required trusted code-verification profile passes on the final workspace state',
+        importance: 'critical',
+        verification: 'deterministic',
+        checkIds: requiredChecks.map(check => check.id),
+        minimumIndependentSources: 1,
+      }
+      const checks = [...requiredChecks, ...((args.additional_checks ?? []) as ReliabilityCheck[])]
+      const claims = [requiredProfileClaim, ...normalizeClaims((args.additional_claims ?? []) as ToolClaim[])]
+      validateChecks(checks, config)
+      const assessment = assessContractCoverage({ objective: args.objective, claims, checks })
+      if (assessment.status !== 'ready') {
+        return Promise.resolve(asJson({ status: 'review-required', assessment }))
+      }
       const contract = createContract({
         objective: args.objective,
-        checks: [...requiredChecks, ...((args.additional_checks ?? []) as ReliabilityCheck[])],
+        claims,
+        checks,
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
       session.append('reliability/contract', contract)

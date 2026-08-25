@@ -27,7 +27,7 @@ The protocol is intentionally small. It is a product-feedback exercise, not a re
 Copy this compact record into the issue form when useful:
 
 ```yaml
-plugin_version: 0.3.0
+plugin_version: 0.4.0
 harness_version_or_commit: ""
 os: ""
 profile: ""

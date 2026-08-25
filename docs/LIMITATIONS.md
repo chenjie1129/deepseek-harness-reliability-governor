@@ -11,7 +11,13 @@
 
 ## Contract selection remains probabilistic
 
-The system-prompt section teaches the model to open contracts for substantive verifiable work, but the model may omit a contract or choose insufficient checks. For high-stakes workflows, a future policy layer should inject a user/deployment-authored contract rather than relying on model-authored criteria.
+The system-prompt section teaches the model to open contracts for substantive verifiable work, but the model may omit a contract. `reliability_assess` prevents a declared deterministic claim from activating with too few independent sources, but it cannot detect a requirement missing from the claim list or prove semantic alignment between a claim and the request. For high-stakes workflows, a policy layer should inject a user/deployment-authored claim set rather than relying only on model-authored criteria.
+
+A `review-required` preflight is not an active contract, so the turn-stopping hook does not enforce it. The model is instructed to revise or decline certification, but a deployment that must prevent bypass needs an outer adoption policy that requires a ready contract before substantive work may settle.
+
+Coverage percentages are not truth probabilities. A single authoritative oracle can be stronger than several correlated observations, while an incorrect test can remain incorrect no matter how many times it runs. The report therefore gates on complete declared-claim coverage and explicit source requirements rather than a raw count threshold.
+
+Evidence-source identity is a pre-execution structural proxy. Paths are normalized lexically but not resolved through the filesystem during assessment, and verifier profiles are distinct by configured ID. Symlink aliases, duplicated profile commands, shared upstream dependencies, and other hidden correlations can therefore overstate real independence.
 
 ## Coding verification still depends on test quality
 

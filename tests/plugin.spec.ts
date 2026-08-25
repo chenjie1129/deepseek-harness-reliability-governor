@@ -121,13 +121,14 @@ function findTool(tools: ToolDefinition[], name: string): ToolDefinition {
 }
 
 describe('DeepSeek Harness plugin composition', () => {
-  it('registers one policy section, one skill provider, seven tools, and one turn-stopping hook', () => {
+  it('registers one policy section, one skill provider, eight tools, and one turn-stopping hook', () => {
     const mounted = harness()
     apply(mounted.context)
 
     expect(mounted.sections.map(section => section.name)).toEqual(['reliability:policy'])
     expect(mounted.skillProviders).toHaveLength(1)
     expect(mounted.tools.map(tool => tool.name)).toEqual([
+      'reliability_assess',
       'reliability_begin',
       'reliability_begin_code',
       'reliability_verify',
@@ -139,6 +140,41 @@ describe('DeepSeek Harness plugin composition', () => {
     expect(mounted.getStopping()).toBeTypeOf('function')
   })
 
+  it('preflights claim coverage and refuses to activate a structurally insufficient contract', async () => {
+    const mounted = harness()
+    apply(mounted.context)
+    const session = createSession('coverage-review')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+    const input = {
+      objective: 'produce independently corroborated output',
+      claims: [{
+        id: 'correct',
+        statement: 'The output is correct',
+        importance: 'critical',
+        verification: 'deterministic',
+        check_ids: ['exists', 'literal'],
+        minimum_independent_sources: 2,
+      }],
+      checks: [
+        { id: 'exists', kind: 'file_exists', path: 'result.txt' },
+        { id: 'literal', kind: 'file_contains', path: 'result.txt', text: 'READY' },
+      ],
+    }
+
+    const assessment = await findTool(mounted.tools, 'reliability_assess').execute(
+      input,
+      execution(agent, 'reliability_assess'),
+    )
+    const begin = await findTool(mounted.tools, 'reliability_begin').execute(
+      input,
+      execution(agent, 'reliability_begin'),
+    )
+
+    expect(assessment).toMatchObject({ status: 'review-required' })
+    expect(begin).toMatchObject({ status: 'review-required' })
+    expect(foldReliability(session.events).contract).toBeUndefined()
+  })
+
   it('certifies a passing contract and steers one receipt-bearing final step', async () => {
     const mounted = harness({ 'result.txt': 'READY\n' })
     apply(mounted.context, { maxAttempts: 2 })
@@ -147,6 +183,10 @@ describe('DeepSeek Harness plugin composition', () => {
     const agent = { session, steer } as unknown as Agent
     await findTool(mounted.tools, 'reliability_begin').execute({
       objective: 'produce result',
+      claims: [{
+        id: 'result-ready', statement: 'The result contains READY', importance: 'critical',
+        verification: 'deterministic', check_ids: ['ready'],
+      }],
       checks: [{ id: 'ready', kind: 'file_contains', path: 'result.txt', text: 'READY' }],
     }, execution(agent, 'reliability_begin'))
 
@@ -168,6 +208,10 @@ describe('DeepSeek Harness plugin composition', () => {
     const agent = { session, steer } as unknown as Agent
     await findTool(mounted.tools, 'reliability_begin').execute({
       objective: 'produce result',
+      claims: [{
+        id: 'result-exists', statement: 'The result file exists', importance: 'critical',
+        verification: 'deterministic', check_ids: ['missing'],
+      }],
       checks: [{ id: 'missing', kind: 'file_exists', path: 'result.txt' }],
     }, execution(agent, 'reliability_begin'))
 
@@ -186,6 +230,10 @@ describe('DeepSeek Harness plugin composition', () => {
     const agent = { session, steer: vi.fn() } as unknown as Agent
     await findTool(mounted.tools, 'reliability_begin').execute({
       objective: 'judge visual quality',
+      claims: [{
+        id: 'clean-run', statement: 'The tool trajectory has no errors', importance: 'critical',
+        verification: 'deterministic', check_ids: ['clean'],
+      }],
       checks: [{ id: 'clean', kind: 'no_tool_errors' }],
     }, execution(agent, 'reliability_begin'))
     const response = await findTool(mounted.tools, 'reliability_abstain').execute({
@@ -262,6 +310,8 @@ describe('DeepSeek Harness plugin composition', () => {
       kind: 'code_verification_succeeded',
       profile: 'unit-tests',
     })
+    expect(state.contract?.version).toBe(2)
+    expect(state.contract?.version === 2 && state.contract.coverageAssessment.status).toBe('ready')
     expect(state.terminal?.status).toBe('certified')
     expect(session.events.filter(event => event.type === 'reliability/code-verification')).toHaveLength(1)
   })

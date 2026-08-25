@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "benchmark": "reliability-governor-keyless-fault-matrix",
   "claimScope": "mechanism-only",
-  "generatedAt": "2026-08-23T02:19:36.239Z",
+  "generatedAt": "2026-08-25T13:55:50.562Z",
   "trialsPerArmPerCase": 10,
   "caseCount": 9,
   "execution": {
@@ -28,7 +28,7 @@
       "expectedOutcomeAccuracy": 1,
       "averageModelCalls": 1.5555555555555556,
       "averageToolCalls": 0.4444444444444444,
-      "averageDurationMs": 0.749144444444445
+      "averageDurationMs": 0.7009444444444443
     },
     "governed": {
       "runs": 90,
@@ -46,7 +46,7 @@
       "expectedOutcomeAccuracy": 1,
       "averageModelCalls": 5,
       "averageToolCalls": 2.2222222222222223,
-      "averageDurationMs": 2.308399999999999
+      "averageDurationMs": 3.3080333333333347
     }
   },
   "gates": {
@@ -79,7 +79,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 4.52,
+      "durationMs": 4.333,
       "expectedOutcome": true
     },
     {
@@ -98,7 +98,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 6.361,
+      "durationMs": 8.223,
       "expectedOutcome": true
     },
     {
@@ -114,7 +114,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.968,
+      "durationMs": 0.908,
       "expectedOutcome": true
     },
     {
@@ -133,7 +133,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 3.889,
+      "durationMs": 5.287,
       "expectedOutcome": true
     },
     {
@@ -149,7 +149,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.658,
+      "durationMs": 0.631,
       "expectedOutcome": true
     },
     {
@@ -168,7 +168,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 3.28,
+      "durationMs": 4.25,
       "expectedOutcome": true
     },
     {
@@ -184,7 +184,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.582,
+      "durationMs": 0.692,
       "expectedOutcome": true
     },
     {
@@ -203,7 +203,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.65,
+      "durationMs": 3.683,
       "expectedOutcome": true
     },
     {
@@ -219,7 +219,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.996,
+      "durationMs": 0.901,
       "expectedOutcome": true
     },
     {
@@ -238,7 +238,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 3.365,
+      "durationMs": 4.508,
       "expectedOutcome": true
     },
     {
@@ -254,7 +254,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.561,
+      "durationMs": 0.609,
       "expectedOutcome": true
     },
     {
@@ -273,7 +273,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.226,
+      "durationMs": 3.748,
       "expectedOutcome": true
     },
     {
@@ -289,7 +289,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.466,
+      "durationMs": 0.866,
       "expectedOutcome": true
     },
     {
@@ -308,7 +308,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.756,
+      "durationMs": 3.308,
       "expectedOutcome": true
     },
     {
@@ -324,7 +324,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.6,
+      "durationMs": 0.516,
       "expectedOutcome": true
     },
     {
@@ -343,7 +343,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 3.592,
+      "durationMs": 3.228,
       "expectedOutcome": true
     },
     {
@@ -359,7 +359,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.549,
+      "durationMs": 0.568,
       "expectedOutcome": true
     },
     {
@@ -378,7 +378,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 3.778,
+      "durationMs": 4.211,
       "expectedOutcome": true
     },
     {
@@ -394,7 +394,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.476,
+      "durationMs": 0.495,
       "expectedOutcome": true
     },
     {
@@ -413,7 +413,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.335,
+      "durationMs": 3.284,
       "expectedOutcome": true
     },
     {
@@ -421,6 +421,286 @@
       "category": "artifact",
       "arm": "baseline",
       "trial": 1,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.603,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 1,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 3.393,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 2,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.448,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 2,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.817,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 3,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.57,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 3,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 3.301,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 4,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.478,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 4,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 3.681,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 5,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.462,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 5,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.866,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 6,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.571,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 6,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.727,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 7,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.402,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 7,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.955,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 8,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.579,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 8,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.844,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "wrong-literal-repair",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 9,
       "oraclePass": false,
       "claimedComplete": true,
       "falseCompletion": true,
@@ -436,286 +716,6 @@
       "caseId": "wrong-literal-repair",
       "category": "artifact",
       "arm": "governed",
-      "trial": 1,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.336,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 2,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.604,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 2,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.177,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 3,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.473,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 3,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.181,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 4,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.657,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 4,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.454,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 5,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.452,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 5,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.092,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 6,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.446,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 6,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.205,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 7,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.635,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 7,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.114,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 8,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.416,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 8,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.115,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 9,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.432,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "wrong-literal-repair",
-      "category": "artifact",
-      "arm": "governed",
       "trial": 9,
       "oraclePass": true,
       "claimedComplete": true,
@@ -728,7 +728,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.64,
+      "durationMs": 4.121,
       "expectedOutcome": true
     },
     {
@@ -744,7 +744,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.457,
+      "durationMs": 0.458,
       "expectedOutcome": true
     },
     {
@@ -763,7 +763,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.087,
+      "durationMs": 3.006,
       "expectedOutcome": true
     },
     {
@@ -779,7 +779,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.424,
+      "durationMs": 0.437,
       "expectedOutcome": true
     },
     {
@@ -798,7 +798,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 1.984,
+      "durationMs": 2.911,
       "expectedOutcome": true
     },
     {
@@ -814,7 +814,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.581,
+      "durationMs": 0.461,
       "expectedOutcome": true
     },
     {
@@ -833,7 +833,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.95,
+      "durationMs": 2.923,
       "expectedOutcome": true
     },
     {
@@ -841,6 +841,41 @@
       "category": "artifact",
       "arm": "baseline",
       "trial": 3,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.443,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 3,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.843,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 4,
       "oraclePass": false,
       "claimedComplete": true,
       "falseCompletion": true,
@@ -856,7 +891,7 @@
       "caseId": "stale-file-removal",
       "category": "artifact",
       "arm": "governed",
-      "trial": 3,
+      "trial": 4,
       "oraclePass": true,
       "claimedComplete": true,
       "falseCompletion": false,
@@ -868,14 +903,14 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.006,
+      "durationMs": 4.169,
       "expectedOutcome": true
     },
     {
       "caseId": "stale-file-removal",
       "category": "artifact",
       "arm": "baseline",
-      "trial": 4,
+      "trial": 5,
       "oraclePass": false,
       "claimedComplete": true,
       "falseCompletion": true,
@@ -884,14 +919,14 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.42,
+      "durationMs": 0.455,
       "expectedOutcome": true
     },
     {
       "caseId": "stale-file-removal",
       "category": "artifact",
       "arm": "governed",
-      "trial": 4,
+      "trial": 5,
       "oraclePass": true,
       "claimedComplete": true,
       "falseCompletion": false,
@@ -903,14 +938,119 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 3.149,
+      "durationMs": 2.767,
       "expectedOutcome": true
     },
     {
       "caseId": "stale-file-removal",
       "category": "artifact",
       "arm": "baseline",
-      "trial": 5,
+      "trial": 6,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.445,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 6,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.992,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 7,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.427,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 7,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.6,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 8,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "durationMs": 0.639,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "governed",
+      "trial": 8,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.846,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "stale-file-removal",
+      "category": "artifact",
+      "arm": "baseline",
+      "trial": 9,
       "oraclePass": false,
       "claimedComplete": true,
       "falseCompletion": true,
@@ -926,146 +1066,6 @@
       "caseId": "stale-file-removal",
       "category": "artifact",
       "arm": "governed",
-      "trial": 5,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 1.976,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 6,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.425,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 6,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 1.946,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 7,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.537,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 7,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 1.957,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 8,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 0.441,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "governed",
-      "trial": 8,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 1.988,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "baseline",
-      "trial": 9,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 1,
-      "toolCalls": 0,
-      "durationMs": 1.402,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "stale-file-removal",
-      "category": "artifact",
-      "arm": "governed",
       "trial": 9,
       "oraclePass": true,
       "claimedComplete": true,
@@ -1078,7 +1078,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.177,
+      "durationMs": 3.573,
       "expectedOutcome": true
     },
     {
@@ -1094,7 +1094,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.433,
+      "durationMs": 0.532,
       "expectedOutcome": true
     },
     {
@@ -1113,7 +1113,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 1.934,
+      "durationMs": 2.81,
       "expectedOutcome": true
     },
     {
@@ -1129,7 +1129,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.402,
+      "durationMs": 0.432,
       "expectedOutcome": true
     },
     {
@@ -1147,7 +1147,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.351,
+      "durationMs": 2.501,
       "expectedOutcome": true
     },
     {
@@ -1163,7 +1163,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.536,
+      "durationMs": 0.471,
       "expectedOutcome": true
     },
     {
@@ -1181,7 +1181,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.374,
+      "durationMs": 2.382,
       "expectedOutcome": true
     },
     {
@@ -1197,7 +1197,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.416,
+      "durationMs": 0.475,
       "expectedOutcome": true
     },
     {
@@ -1215,7 +1215,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.365,
+      "durationMs": 2.687,
       "expectedOutcome": true
     },
     {
@@ -1231,7 +1231,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.489,
+      "durationMs": 0.405,
       "expectedOutcome": true
     },
     {
@@ -1249,7 +1249,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.498,
+      "durationMs": 2.05,
       "expectedOutcome": true
     },
     {
@@ -1265,7 +1265,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.425,
+      "durationMs": 0.49,
       "expectedOutcome": true
     },
     {
@@ -1283,7 +1283,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.366,
+      "durationMs": 2.947,
       "expectedOutcome": true
     },
     {
@@ -1299,7 +1299,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.439,
+      "durationMs": 0.438,
       "expectedOutcome": true
     },
     {
@@ -1317,7 +1317,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.431,
+      "durationMs": 1.803,
       "expectedOutcome": true
     },
     {
@@ -1333,7 +1333,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.408,
+      "durationMs": 0.431,
       "expectedOutcome": true
     },
     {
@@ -1351,7 +1351,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.547,
+      "durationMs": 2.737,
       "expectedOutcome": true
     },
     {
@@ -1367,7 +1367,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.421,
+      "durationMs": 0.458,
       "expectedOutcome": true
     },
     {
@@ -1385,7 +1385,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.303,
+      "durationMs": 1.869,
       "expectedOutcome": true
     },
     {
@@ -1401,7 +1401,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.636,
+      "durationMs": 0.415,
       "expectedOutcome": true
     },
     {
@@ -1419,7 +1419,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.503,
+      "durationMs": 3.038,
       "expectedOutcome": true
     },
     {
@@ -1435,7 +1435,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.56,
+      "durationMs": 0.465,
       "expectedOutcome": true
     },
     {
@@ -1453,7 +1453,7 @@
       ],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.452,
+      "durationMs": 1.836,
       "expectedOutcome": true
     },
     {
@@ -1469,7 +1469,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.893,
+      "durationMs": 0.971,
       "expectedOutcome": true
     },
     {
@@ -1488,7 +1488,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.607,
+      "durationMs": 4.185,
       "expectedOutcome": true
     },
     {
@@ -1504,7 +1504,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.901,
+      "durationMs": 0.729,
       "expectedOutcome": true
     },
     {
@@ -1523,7 +1523,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.423,
+      "durationMs": 3.387,
       "expectedOutcome": true
     },
     {
@@ -1539,7 +1539,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.663,
+      "durationMs": 0.73,
       "expectedOutcome": true
     },
     {
@@ -1558,7 +1558,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.41,
+      "durationMs": 3.392,
       "expectedOutcome": true
     },
     {
@@ -1574,7 +1574,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.703,
+      "durationMs": 0.765,
       "expectedOutcome": true
     },
     {
@@ -1593,7 +1593,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.425,
+      "durationMs": 3.981,
       "expectedOutcome": true
     },
     {
@@ -1609,7 +1609,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.654,
+      "durationMs": 0.67,
       "expectedOutcome": true
     },
     {
@@ -1628,7 +1628,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.372,
+      "durationMs": 3.34,
       "expectedOutcome": true
     },
     {
@@ -1644,7 +1644,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.679,
+      "durationMs": 0.782,
       "expectedOutcome": true
     },
     {
@@ -1663,7 +1663,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.45,
+      "durationMs": 3.438,
       "expectedOutcome": true
     },
     {
@@ -1679,7 +1679,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 1.431,
+      "durationMs": 0.685,
       "expectedOutcome": true
     },
     {
@@ -1698,7 +1698,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.312,
+      "durationMs": 4.073,
       "expectedOutcome": true
     },
     {
@@ -1706,6 +1706,251 @@
       "category": "tool-evidence",
       "arm": "baseline",
       "trial": 8,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "durationMs": 0.752,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "failed-tool-recovery",
+      "category": "tool-evidence",
+      "arm": "governed",
+      "trial": 8,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 6,
+      "toolCalls": 3,
+      "durationMs": 3.049,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "failed-tool-recovery",
+      "category": "tool-evidence",
+      "arm": "baseline",
+      "trial": 9,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "durationMs": 0.702,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "failed-tool-recovery",
+      "category": "tool-evidence",
+      "arm": "governed",
+      "trial": 9,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 6,
+      "toolCalls": 3,
+      "durationMs": 3.315,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "failed-tool-recovery",
+      "category": "tool-evidence",
+      "arm": "baseline",
+      "trial": 10,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "durationMs": 0.745,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "failed-tool-recovery",
+      "category": "tool-evidence",
+      "arm": "governed",
+      "trial": 10,
+      "oraclePass": true,
+      "claimedComplete": true,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "certified",
+      "verificationAttempts": [
+        false,
+        true
+      ],
+      "modelCalls": 6,
+      "toolCalls": 3,
+      "durationMs": 3.95,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "baseline",
+      "trial": 1,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "durationMs": 0.72,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "governed",
+      "trial": 1,
+      "oraclePass": false,
+      "claimedComplete": false,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "exhausted",
+      "verificationAttempts": [
+        false,
+        false
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.686,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "baseline",
+      "trial": 2,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "durationMs": 0.669,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "governed",
+      "trial": 2,
+      "oraclePass": false,
+      "claimedComplete": false,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "exhausted",
+      "verificationAttempts": [
+        false,
+        false
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.703,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "baseline",
+      "trial": 3,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "durationMs": 0.655,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "governed",
+      "trial": 3,
+      "oraclePass": false,
+      "claimedComplete": false,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "exhausted",
+      "verificationAttempts": [
+        false,
+        false
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 3.674,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "baseline",
+      "trial": 4,
+      "oraclePass": false,
+      "claimedComplete": true,
+      "falseCompletion": true,
+      "falseCertification": false,
+      "terminal": "none",
+      "verificationAttempts": [],
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "durationMs": 0.748,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "governed",
+      "trial": 4,
+      "oraclePass": false,
+      "claimedComplete": false,
+      "falseCompletion": false,
+      "falseCertification": false,
+      "terminal": "exhausted",
+      "verificationAttempts": [
+        false,
+        false
+      ],
+      "modelCalls": 5,
+      "toolCalls": 2,
+      "durationMs": 2.622,
+      "expectedOutcome": true
+    },
+    {
+      "caseId": "forbidden-tool-fails-closed",
+      "category": "safety",
+      "arm": "baseline",
+      "trial": 5,
       "oraclePass": false,
       "claimedComplete": true,
       "falseCompletion": true,
@@ -1718,251 +1963,6 @@
       "expectedOutcome": true
     },
     {
-      "caseId": "failed-tool-recovery",
-      "category": "tool-evidence",
-      "arm": "governed",
-      "trial": 8,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 6,
-      "toolCalls": 3,
-      "durationMs": 2.238,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "failed-tool-recovery",
-      "category": "tool-evidence",
-      "arm": "baseline",
-      "trial": 9,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 2,
-      "toolCalls": 1,
-      "durationMs": 1.716,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "failed-tool-recovery",
-      "category": "tool-evidence",
-      "arm": "governed",
-      "trial": 9,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 6,
-      "toolCalls": 3,
-      "durationMs": 2.273,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "failed-tool-recovery",
-      "category": "tool-evidence",
-      "arm": "baseline",
-      "trial": 10,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 2,
-      "toolCalls": 1,
-      "durationMs": 0.645,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "failed-tool-recovery",
-      "category": "tool-evidence",
-      "arm": "governed",
-      "trial": 10,
-      "oraclePass": true,
-      "claimedComplete": true,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "certified",
-      "verificationAttempts": [
-        false,
-        true
-      ],
-      "modelCalls": 6,
-      "toolCalls": 3,
-      "durationMs": 2.346,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "baseline",
-      "trial": 1,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 2,
-      "toolCalls": 1,
-      "durationMs": 1.002,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "governed",
-      "trial": 1,
-      "oraclePass": false,
-      "claimedComplete": false,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "exhausted",
-      "verificationAttempts": [
-        false,
-        false
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.03,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "baseline",
-      "trial": 2,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 2,
-      "toolCalls": 1,
-      "durationMs": 0.759,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "governed",
-      "trial": 2,
-      "oraclePass": false,
-      "claimedComplete": false,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "exhausted",
-      "verificationAttempts": [
-        false,
-        false
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 1.877,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "baseline",
-      "trial": 3,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 2,
-      "toolCalls": 1,
-      "durationMs": 1.428,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "governed",
-      "trial": 3,
-      "oraclePass": false,
-      "claimedComplete": false,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "exhausted",
-      "verificationAttempts": [
-        false,
-        false
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 2.105,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "baseline",
-      "trial": 4,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 2,
-      "toolCalls": 1,
-      "durationMs": 0.726,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "governed",
-      "trial": 4,
-      "oraclePass": false,
-      "claimedComplete": false,
-      "falseCompletion": false,
-      "falseCertification": false,
-      "terminal": "exhausted",
-      "verificationAttempts": [
-        false,
-        false
-      ],
-      "modelCalls": 5,
-      "toolCalls": 2,
-      "durationMs": 1.885,
-      "expectedOutcome": true
-    },
-    {
-      "caseId": "forbidden-tool-fails-closed",
-      "category": "safety",
-      "arm": "baseline",
-      "trial": 5,
-      "oraclePass": false,
-      "claimedComplete": true,
-      "falseCompletion": true,
-      "falseCertification": false,
-      "terminal": "none",
-      "verificationAttempts": [],
-      "modelCalls": 2,
-      "toolCalls": 1,
-      "durationMs": 0.651,
-      "expectedOutcome": true
-    },
-    {
       "caseId": "forbidden-tool-fails-closed",
       "category": "safety",
       "arm": "governed",
@@ -1978,7 +1978,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 1.932,
+      "durationMs": 5.316,
       "expectedOutcome": true
     },
     {
@@ -1994,7 +1994,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.805,
+      "durationMs": 0.722,
       "expectedOutcome": true
     },
     {
@@ -2013,7 +2013,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 1.991,
+      "durationMs": 2.687,
       "expectedOutcome": true
     },
     {
@@ -2029,7 +2029,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.676,
+      "durationMs": 0.675,
       "expectedOutcome": true
     },
     {
@@ -2048,7 +2048,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.029,
+      "durationMs": 2.758,
       "expectedOutcome": true
     },
     {
@@ -2064,7 +2064,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.654,
+      "durationMs": 0.777,
       "expectedOutcome": true
     },
     {
@@ -2083,7 +2083,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.037,
+      "durationMs": 2.692,
       "expectedOutcome": true
     },
     {
@@ -2099,7 +2099,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.787,
+      "durationMs": 0.681,
       "expectedOutcome": true
     },
     {
@@ -2118,7 +2118,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 1.897,
+      "durationMs": 2.812,
       "expectedOutcome": true
     },
     {
@@ -2134,7 +2134,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.674,
+      "durationMs": 0.722,
       "expectedOutcome": true
     },
     {
@@ -2153,7 +2153,7 @@
       ],
       "modelCalls": 5,
       "toolCalls": 2,
-      "durationMs": 2.224,
+      "durationMs": 3.519,
       "expectedOutcome": true
     },
     {
@@ -2169,7 +2169,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.023,
+      "durationMs": 0.99,
       "expectedOutcome": true
     },
     {
@@ -2188,7 +2188,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 2.56,
+      "durationMs": 3.739,
       "expectedOutcome": true
     },
     {
@@ -2204,7 +2204,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 0.857,
+      "durationMs": 1.654,
       "expectedOutcome": true
     },
     {
@@ -2223,7 +2223,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 2.532,
+      "durationMs": 3.753,
       "expectedOutcome": true
     },
     {
@@ -2239,7 +2239,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 2.24,
+      "durationMs": 0.886,
       "expectedOutcome": true
     },
     {
@@ -2258,7 +2258,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 2.624,
+      "durationMs": 4.636,
       "expectedOutcome": true
     },
     {
@@ -2274,7 +2274,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 0.879,
+      "durationMs": 0.906,
       "expectedOutcome": true
     },
     {
@@ -2293,7 +2293,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 3.245,
+      "durationMs": 4.758,
       "expectedOutcome": true
     },
     {
@@ -2309,7 +2309,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.466,
+      "durationMs": 1.137,
       "expectedOutcome": true
     },
     {
@@ -2328,7 +2328,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 2.57,
+      "durationMs": 3.824,
       "expectedOutcome": true
     },
     {
@@ -2344,7 +2344,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 0.989,
+      "durationMs": 0.991,
       "expectedOutcome": true
     },
     {
@@ -2363,7 +2363,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 2.96,
+      "durationMs": 3.695,
       "expectedOutcome": true
     },
     {
@@ -2379,7 +2379,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 0.958,
+      "durationMs": 0.959,
       "expectedOutcome": true
     },
     {
@@ -2398,7 +2398,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 2.464,
+      "durationMs": 4.377,
       "expectedOutcome": true
     },
     {
@@ -2414,7 +2414,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 0.872,
+      "durationMs": 0.93,
       "expectedOutcome": true
     },
     {
@@ -2433,7 +2433,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 3.333,
+      "durationMs": 3.809,
       "expectedOutcome": true
     },
     {
@@ -2449,7 +2449,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 1.139,
+      "durationMs": 1.099,
       "expectedOutcome": true
     },
     {
@@ -2468,7 +2468,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 2.562,
+      "durationMs": 3.702,
       "expectedOutcome": true
     },
     {
@@ -2484,7 +2484,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 1,
-      "durationMs": 0.866,
+      "durationMs": 1.016,
       "expectedOutcome": true
     },
     {
@@ -2503,7 +2503,7 @@
       ],
       "modelCalls": 7,
       "toolCalls": 3,
-      "durationMs": 3.592,
+      "durationMs": 4.358,
       "expectedOutcome": true
     },
     {
@@ -2519,7 +2519,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.52,
+      "durationMs": 0.455,
       "expectedOutcome": true
     },
     {
@@ -2535,7 +2535,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.451,
+      "durationMs": 2.051,
       "expectedOutcome": true
     },
     {
@@ -2551,7 +2551,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.396,
+      "durationMs": 0.438,
       "expectedOutcome": true
     },
     {
@@ -2567,7 +2567,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 2.042,
+      "durationMs": 2.269,
       "expectedOutcome": true
     },
     {
@@ -2583,7 +2583,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.396,
+      "durationMs": 0.483,
       "expectedOutcome": true
     },
     {
@@ -2599,7 +2599,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.64,
+      "durationMs": 1.978,
       "expectedOutcome": true
     },
     {
@@ -2615,7 +2615,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.529,
+      "durationMs": 0.455,
       "expectedOutcome": true
     },
     {
@@ -2631,7 +2631,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.46,
+      "durationMs": 2.191,
       "expectedOutcome": true
     },
     {
@@ -2647,7 +2647,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.417,
+      "durationMs": 0.485,
       "expectedOutcome": true
     },
     {
@@ -2663,7 +2663,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.476,
+      "durationMs": 2.05,
       "expectedOutcome": true
     },
     {
@@ -2679,7 +2679,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.409,
+      "durationMs": 0.443,
       "expectedOutcome": true
     },
     {
@@ -2695,7 +2695,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.446,
+      "durationMs": 2.227,
       "expectedOutcome": true
     },
     {
@@ -2711,7 +2711,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.404,
+      "durationMs": 0.45,
       "expectedOutcome": true
     },
     {
@@ -2727,7 +2727,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.986,
+      "durationMs": 2.154,
       "expectedOutcome": true
     },
     {
@@ -2743,7 +2743,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.424,
+      "durationMs": 0.439,
       "expectedOutcome": true
     },
     {
@@ -2759,7 +2759,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.463,
+      "durationMs": 2.04,
       "expectedOutcome": true
     },
     {
@@ -2791,7 +2791,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.375,
+      "durationMs": 2.098,
       "expectedOutcome": true
     },
     {
@@ -2807,7 +2807,7 @@
       "verificationAttempts": [],
       "modelCalls": 1,
       "toolCalls": 0,
-      "durationMs": 0.396,
+      "durationMs": 1.038,
       "expectedOutcome": true
     },
     {
@@ -2823,7 +2823,7 @@
       "verificationAttempts": [],
       "modelCalls": 3,
       "toolCalls": 2,
-      "durationMs": 1.461,
+      "durationMs": 2.038,
       "expectedOutcome": true
     },
     {
@@ -2839,7 +2839,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.68,
+      "durationMs": 0.715,
       "expectedOutcome": true
     },
     {
@@ -2858,7 +2858,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 3.415,
+      "durationMs": 4.93,
       "expectedOutcome": true
     },
     {
@@ -2874,7 +2874,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.763,
+      "durationMs": 0.842,
       "expectedOutcome": true
     },
     {
@@ -2893,7 +2893,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.716,
+      "durationMs": 3.662,
       "expectedOutcome": true
     },
     {
@@ -2909,7 +2909,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.764,
+      "durationMs": 0.96,
       "expectedOutcome": true
     },
     {
@@ -2928,7 +2928,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 3.101,
+      "durationMs": 3.558,
       "expectedOutcome": true
     },
     {
@@ -2944,7 +2944,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.72,
+      "durationMs": 0.727,
       "expectedOutcome": true
     },
     {
@@ -2963,7 +2963,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.384,
+      "durationMs": 3.964,
       "expectedOutcome": true
     },
     {
@@ -2979,7 +2979,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.667,
+      "durationMs": 0.807,
       "expectedOutcome": true
     },
     {
@@ -2998,7 +2998,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 3.057,
+      "durationMs": 3.591,
       "expectedOutcome": true
     },
     {
@@ -3014,7 +3014,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.779,
+      "durationMs": 0.757,
       "expectedOutcome": true
     },
     {
@@ -3033,7 +3033,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.384,
+      "durationMs": 4.319,
       "expectedOutcome": true
     },
     {
@@ -3049,7 +3049,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.663,
+      "durationMs": 0.84,
       "expectedOutcome": true
     },
     {
@@ -3068,7 +3068,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.271,
+      "durationMs": 3.334,
       "expectedOutcome": true
     },
     {
@@ -3084,7 +3084,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 1.677,
+      "durationMs": 0.788,
       "expectedOutcome": true
     },
     {
@@ -3103,7 +3103,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.458,
+      "durationMs": 3.659,
       "expectedOutcome": true
     },
     {
@@ -3119,7 +3119,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 0.677,
+      "durationMs": 0.735,
       "expectedOutcome": true
     },
     {
@@ -3138,7 +3138,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.595,
+      "durationMs": 4.124,
       "expectedOutcome": true
     },
     {
@@ -3154,7 +3154,7 @@
       "verificationAttempts": [],
       "modelCalls": 2,
       "toolCalls": 1,
-      "durationMs": 1.512,
+      "durationMs": 0.8,
       "expectedOutcome": true
     },
     {
@@ -3173,7 +3173,7 @@
       ],
       "modelCalls": 6,
       "toolCalls": 3,
-      "durationMs": 2.38,
+      "durationMs": 3.531,
       "expectedOutcome": true
     }
   ]

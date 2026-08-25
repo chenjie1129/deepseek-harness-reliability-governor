@@ -7,6 +7,7 @@ The plugin optimizes for **verified-or-abstain**, not deterministic prose. It na
 ```text
 inactive
    |
+   | reliability_assess: ready
    | reliability_begin / reliability_begin_code
    v
 active -- check passes ------------------------> certified
@@ -22,6 +23,8 @@ active -- check passes ------------------------> certified
 ```
 
 Only `active` causes turn-stopping enforcement. Every transition is reconstructed from the append-only session log.
+
+`reliability_assess` is a preflight, not a lifecycle state. It groups checks by evidence authority, maps them to declared claims, and returns `ready` or `review-required` without inspecting output or writing a contract event. A current `reliability_begin` call stores a version 2 contract containing the claims and immutable coverage assessment. Version 1 contract events remain readable for session compatibility.
 
 ## DeepSeek Harness integration rules
 
@@ -42,7 +45,7 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 
 ## Durable event vocabulary
 
-- `reliability/contract` records the objective, ordered checks, budget, and exact event boundary.
+- `reliability/contract` records the objective, declared claims, structural coverage assessment, ordered checks, budget, and exact event boundary.
 - `reliability/attempt` records trigger, ordered results, verdict, and a stable content receipt.
 - `reliability/terminal` records certified/exhausted/abstained, reason, linked attempt receipt when present, and terminal receipt.
 - `reliability/code-verification` records an immutable profile receipt, exit/timing/sandbox facts, privacy-minimized output receipts, and the trusted verdict.
@@ -50,6 +53,10 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 These are required events because they alter whether a session may truthfully settle. A runtime that cannot interpret them should refuse continuation rather than silently discard the contract.
 
 ## Evidence boundaries
+
+Contract coverage counts authorities, not assertions. Normalized aliases of one workspace path share a source; all ordinary tool and trajectory checks conservatively share the Harness tool-event source; and trusted verifier checks share a source by profile. At least one claim must be critical, and every declared claim must be deterministic and meet its `minimumIndependentSources` value before a version 2 contract can activate. The assessment warns about brittle check kinds but does not block on warnings.
+
+This is structural coverage only. The runtime cannot infer a requirement omitted from the claim list or decide whether the claim text matches the user's intent. Reference-authored contracts and human review remain stronger sources of semantic completeness.
 
 File checks:
 

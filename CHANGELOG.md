@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.4.0
+
+- Add `reliability_assess` to preflight declared-claim coverage without evaluating task output or mutating session state.
+- Count independent evidence authorities rather than raw checks, so multiple assertions over one file, tool, or verifier profile cannot masquerade as corroboration.
+- Require every declared claim to use deterministic evidence and meet its explicit minimum source count before a version 2 contract activates.
+- Report critical and weighted coverage, used and orphan checks, evidence-source counts, brittle-check warnings, and stable assessment receipts.
+- Preserve compatibility with existing version 1 contract events while storing claims and their coverage assessment in new contracts.
+- Record structural coverage telemetry in the pre-registered live runner and retain model-authored versus independently authored contract arms to measure omitted-claim risk.
+
 ## 0.3.0
 
 - Invalidate trusted code-verification evidence after any later non-governor tool call, including nested Code Mode dispatches, or a later different workspace-write verifier.

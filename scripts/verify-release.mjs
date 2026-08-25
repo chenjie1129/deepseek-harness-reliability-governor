@@ -21,7 +21,8 @@ for (const required of [
   'docs/CODE_VERIFICATION.md',
   'docs/SMOKE_TEST.md',
   'docs/COMMUNITY_POST.md',
-  'docs/RELEASE_NOTES_V0.3.0.md',
+  `docs/RELEASE_NOTES_V${manifest.version}.md`,
+  'docs/CONTRACT_COVERAGE.md',
   'docs/assets/keyless-benchmark.svg',
   'evaluations/cases.json',
   'evaluations/keyless-benchmark.json',
@@ -49,7 +50,14 @@ for (const required of [
   if (!info.isFile()) throw new Error(`required artifact is not a file: ${required}`)
 }
 
-for (const source of ['src/index.ts', 'src/governor.ts', 'src/types.ts', 'src/code-verifier.ts']) {
+for (const source of [
+  'src/index.ts',
+  'src/governor.ts',
+  'src/types.ts',
+  'src/coverage.ts',
+  'src/receipts.ts',
+  'src/code-verifier.ts',
+]) {
   const text = await readFile(new URL(source, root), 'utf8')
   if (text.includes("from 'node:fs") || text.includes("from 'node:child_process")) {
     throw new Error(`${source} bypasses a Harness capability seam`)

@@ -152,6 +152,10 @@ describe('real Harness agent-loop behavior', () => {
     const governedAdapter = new ScriptedAdapter([
       toolCallResponse('begin', 'reliability_begin', {
         objective: 'Create result.txt',
+        claims: [{
+          id: 'artifact', statement: 'result.txt exists', importance: 'critical',
+          verification: 'deterministic', check_ids: ['artifact'],
+        }],
         checks: [{ id: 'artifact', kind: 'file_exists', path: 'result.txt' }],
         max_attempts: 2,
       }),
@@ -189,6 +193,10 @@ describe('real Harness agent-loop behavior', () => {
       return [
         toolCallResponse(`begin-${index}`, 'reliability_begin', {
           objective: `Create ${path}`,
+          claims: [{
+            id: 'artifact', statement: `${path} exists`, importance: 'critical',
+            verification: 'deterministic', check_ids: ['artifact'],
+          }],
           checks: [{ id: 'artifact', kind: 'file_exists', path }],
           max_attempts: 2,
         }),

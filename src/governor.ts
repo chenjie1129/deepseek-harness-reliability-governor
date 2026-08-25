@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { isAbsolute } from 'node:path'
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
@@ -9,6 +9,11 @@ import type {
   ReliabilityContract,
   ReliabilityTerminal,
 } from './types.js'
+import type { ReliabilityClaim } from './types.js'
+import { assessContractCoverage } from './coverage.js'
+import { canonicalJsonForComparison, receiptFor } from './receipts.js'
+
+export { receiptFor } from './receipts.js'
 
 export interface GovernorLimits {
   maxAttempts: number
@@ -21,27 +26,6 @@ export interface VerificationEnvironment {
   session: Pick<Session, 'events' | 'header'>
   signal?: AbortSignal
   maxFileBytes: number
-}
-
-function canonicalJson(value: unknown): string {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value)
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('cannot hash a non-finite number')
-    return JSON.stringify(value)
-  }
-  if (Array.isArray(value)) return `[${value.map(item => canonicalJson(item)).join(',')}]`
-  if (typeof value === 'object') {
-    const record = value as Record<string, unknown>
-    return `{${Object.keys(record).sort().filter(key => record[key] !== undefined)
-      .map(key => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
-  }
-  throw new Error(`cannot hash ${typeof value}`)
-}
-
-/** A stable content receipt; it proves what the plugin recorded, not external truth. */
-export function receiptFor(kind: string, payload: unknown): string {
-  const body = canonicalJson({ kind, payload })
-  return `sha256:${createHash('sha256').update(body).digest('hex')}`
 }
 
 function assertRelativeWorkspacePath(path: string): void {
@@ -80,7 +64,7 @@ function assertCheck(check: ReliabilityCheck): void {
       throw new Error(`${check.id}: JSON pointer must be empty or start with /`)
     }
     if (check.pointer.length > 2_048) throw new Error(`${check.id}: JSON pointer must be at most 2048 characters`)
-    canonicalJson(check.value)
+    canonicalJsonForComparison(check.value)
   }
   if (check.kind === 'tool_succeeded' && check.argumentsContain === '') {
     throw new Error(`${check.id}: argumentsContain must be non-empty when supplied`)
@@ -94,8 +78,27 @@ function assertCheck(check: ReliabilityCheck): void {
   }
 }
 
+/** Validate deterministic checks before either coverage assessment or contract activation. */
+export function validateChecks(
+  checks: ReliabilityCheck[],
+  limits: Pick<GovernorLimits, 'maxChecks'>,
+  requireAtLeastOne = true,
+): void {
+  if (requireAtLeastOne && checks.length === 0) {
+    throw new Error('checks must contain at least one deterministic assertion')
+  }
+  if (checks.length > limits.maxChecks) throw new Error(`checks exceeds configured maxChecks (${limits.maxChecks})`)
+  const ids = new Set<string>()
+  for (const check of checks) {
+    assertCheck(check)
+    if (ids.has(check.id)) throw new Error(`duplicate check id: ${check.id}`)
+    ids.add(check.id)
+  }
+}
+
 const GOVERNOR_TOOL_NAMES = new Set([
   'reliability_begin',
+  'reliability_assess',
   'reliability_begin_code',
   'reliability_verify',
   'reliability_status',
@@ -142,35 +145,43 @@ function codeVerificationSucceeded(
 
 /** Validate and detach a model-authored contract before it enters the log. */
 export function createContract(
-  input: { objective: string; checks: ReliabilityCheck[]; maxAttempts?: number },
+  input: { objective: string; checks: ReliabilityCheck[]; claims?: ReliabilityClaim[]; maxAttempts?: number },
   startedAtSeq: number,
   limits: GovernorLimits,
 ): ReliabilityContract {
   const objective = input.objective.trim()
   if (objective.length === 0) throw new Error('objective must be non-empty')
   if (objective.length > 2_000) throw new Error('objective must be at most 2000 characters')
-  if (input.checks.length === 0) throw new Error('checks must contain at least one deterministic assertion')
-  if (input.checks.length > limits.maxChecks) throw new Error(`checks exceeds configured maxChecks (${limits.maxChecks})`)
-
-  const ids = new Set<string>()
-  for (const check of input.checks) {
-    assertCheck(check)
-    if (ids.has(check.id)) throw new Error(`duplicate check id: ${check.id}`)
-    ids.add(check.id)
-  }
+  validateChecks(input.checks, limits)
 
   const maxAttempts = input.maxAttempts ?? limits.maxAttempts
   if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > limits.maxAttempts) {
     throw new Error(`max_attempts must be an integer from 1 to ${limits.maxAttempts}`)
   }
 
-  return structuredClone({
-    version: 1,
+  const base = {
     contractId: randomUUID(),
     objective,
     checks: input.checks,
     maxAttempts,
     startedAtSeq,
+  }
+  if (input.claims === undefined) return structuredClone({ version: 1 as const, ...base })
+
+  const coverageAssessment = assessContractCoverage({
+    objective,
+    claims: input.claims,
+    checks: input.checks,
+  })
+  if (coverageAssessment.status !== 'ready') {
+    const errors = coverageAssessment.findings.filter(item => item.severity === 'error').map(item => item.message)
+    throw new Error(`contract coverage requires review: ${errors.join('; ')}`)
+  }
+  return structuredClone({
+    version: 2 as const,
+    ...base,
+    claims: input.claims,
+    coverageAssessment,
   })
 }
 
@@ -265,7 +276,8 @@ async function fileResult(
         ? (current as Record<string, unknown>)[key]
         : undefined
     }, parsed)
-    const passed = actual !== undefined && canonicalJson(actual) === canonicalJson(check.value)
+    const passed = actual !== undefined
+      && canonicalJsonForComparison(actual) === canonicalJsonForComparison(check.value)
     return result(check, passed, passed ? 'JSON value matches' : `JSON value differs at ${check.pointer || '<root>'}`)
   } catch (error: unknown) {
     return result(check, false, `invalid JSON evidence: ${error instanceof Error ? error.message : 'unknown error'}`)

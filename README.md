@@ -29,6 +29,7 @@ Harness already has goal and iterative workflow plugins, but their current docum
 
 ## What it adds
 
+- `reliability_assess` — preview declared-claim coverage, independent-source counts, and brittle-evidence warnings without evaluating task output.
 - `reliability_begin` — open one explicit completion contract.
 - `reliability_begin_code` — open a code contract that automatically includes every deployment-required trusted verification profile.
 - `reliability_verify` — run deterministic checks immediately.
@@ -38,7 +39,7 @@ Harness already has goal and iterative workflow plugins, but their current docum
 - `reliability_code_verify` — execute one immutable profile through Harness-managed subprocess and sandbox services.
 - `agent/turn-stopping` enforcement — verify before an active contract is allowed to settle, then steer a bounded repair or truthfully report certification/exhaustion.
 
-Supported checks in v0.3:
+Supported checks in v0.4:
 
 | Check | Pass condition |
 | --- | --- |
@@ -59,6 +60,8 @@ Trusted verifier evidence is invalidated conservatively by any later non-governo
 
 `file_contains` and `no_tool_errors` intentionally have narrow meanings. The policy warns the model not to use an exact literal for equivalent-output requirements and not to treat a recovered intermediate tool error as evidence that the final result failed. The live benchmark includes JSON-format equivalence and a recoverable-tool-error task to measure those authorship mistakes rather than assume them away.
 
+Before activation, v0.4 maps every declared success claim to checks and counts independent evidence authorities rather than raw checks. Two checks over one file count as one source. `human-required`, `unsupported`, and under-supported claims produce `review-required`; brittle checks produce visible warnings. See [Contract coverage](docs/CONTRACT_COVERAGE.md). Coverage is structural: it cannot detect a requirement the model omitted or prove that a claim faithfully represents the user's intent.
+
 ## Install
 
 From the directory containing this checkout:
@@ -68,7 +71,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.3.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -99,17 +102,33 @@ The model calls:
 ```json
 {
   "objective": "Create a configured application entry point",
+  "claims": [
+    {
+      "id": "entry-configured",
+      "statement": "src/index.ts exists and exports apply",
+      "importance": "critical",
+      "verification": "deterministic",
+      "check_ids": ["entry", "export"],
+      "minimum_independent_sources": 1
+    },
+    {
+      "id": "trusted-tests-pass",
+      "statement": "The deployment-approved unit tests pass on the final workspace state",
+      "importance": "critical",
+      "verification": "deterministic",
+      "check_ids": ["tests"]
+    }
+  ],
   "checks": [
     { "id": "entry", "kind": "file_exists", "path": "src/index.ts" },
     { "id": "export", "kind": "file_contains", "path": "src/index.ts", "text": "export function apply" },
-    { "id": "tests", "kind": "tool_succeeded", "tool": "bash", "argumentsContain": "npm test" },
-    { "id": "clean-tools", "kind": "no_tool_errors" }
+    { "id": "tests", "kind": "code_verification_succeeded", "profile": "unit-tests" }
   ],
   "max_attempts": 3
 }
 ```
 
-At a stopping boundary the plugin evaluates those assertions. A failure produces an exact repair message and another model step. A pass records `certified`; the final model step receives the terminal SHA-256 receipt. At the budget limit it records `exhausted` and explicitly tells the model not to claim completion.
+The model first previews this mapping with `reliability_assess`; `reliability_begin` activates it only when structural coverage is ready. At a stopping boundary the plugin evaluates the actual assertions. A failure produces an exact repair message and another model step. A pass records `certified`; the final model step receives the terminal SHA-256 receipt. At the budget limit it records `exhausted` and explicitly tells the model not to claim completion.
 
 ## Develop and verify
 
@@ -141,10 +160,10 @@ The keyless benchmark proves the governor's enforcement mechanics using the real
 - The model still chooses whether a task needs a contract and which checks express success. A bad contract can certify the wrong thing.
 - Out-of-band workspace changes that produce no Harness tool event are not detected; use isolated workspaces and prevent concurrent external writers.
 - Deterministic checks improve outcome reliability, not wording consistency.
-- v0.3 does not judge visual quality, semantic correctness beyond configured checks, remote state without authoritative evidence, or unknown side-effect outcomes.
+- v0.4 does not judge visual quality, semantic correctness beyond configured checks, omitted claims, remote state without authoritative evidence, or unknown side-effect outcomes.
 - Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.
 
-See [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
+See [Contract coverage](docs/CONTRACT_COVERAGE.md), [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
 
 ## License
 

@@ -31,6 +31,8 @@ Every case/trial block has three arms:
 
 Reference-contract fidelity is measured from the durable contract event. A missing or modified contract is not silently accepted. Execution order uses a fixed three-way rotation within every block. Each run gets a new workspace and persisted Harness session. No outcome may be discarded.
 
+The v3 runner also records the contract coverage status, critical and weighted declared-claim coverage, independent-source count, finding codes, and assessment receipt. These fields audit structural evidence sufficiency. They do not establish that a model-authored claim set is semantically complete; the model-versus-reference arm difference remains the measurement for that authorship risk.
+
 The full default is 20 cases × 5 trials × 3 arms = **300 agent runs**. Provider cost depends on the configured model.
 
 ### Plan without spending
@@ -50,7 +52,7 @@ npm run benchmark:live -- \
   --max-cases 2 \
   --trials 1 \
   --harness-root /absolute/path/to/deepseek-harness \
-  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.3.0.tgz \
+  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.4.0.tgz \
   --output /absolute/path/to/pilot-report.json
 ```
 

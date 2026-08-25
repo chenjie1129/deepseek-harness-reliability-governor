@@ -1,12 +1,12 @@
 {
-  "version": 2,
-  "name": "reliability-governor-live-model-v2",
-  "description": "Pre-registered three-arm local benchmark of false success, false rejection, contract authorship, repair effects, and overhead.",
+  "version": 3,
+  "name": "reliability-governor-live-model-v3",
+  "description": "Pre-registered three-arm local benchmark of false success, false rejection, claim coverage, contract authorship, repair effects, and overhead.",
   "defaultTrials": 5,
   "minimumTrialsForDecision": 5,
   "outcomeMarker": "BENCHMARK_OUTCOME",
   "preregistration": {
-    "protocolId": "reliability-governor-live-v2-2026-08-23",
+    "protocolId": "reliability-governor-live-v3-2026-08-25",
     "arms": ["baseline", "governed-model-contract", "governed-reference-contract"],
     "unitOfAssignment": "case-trial block",
     "armOrder": "deterministic three-way rotation by case index plus trial",
@@ -19,6 +19,7 @@
       "governed false-abstention rate among oracle-pass runs",
       "model-minus-reference false-rejection rate",
       "model-minus-reference terminal false-rejection rate (false exhaustion or false abstention)",
+      "coverage-ready contract rate and declared-claim evidence-source telemetry",
       "paired cross-arm oracle transitions",
       "within-run observed oracle transitions after reliability attempts"
     ],

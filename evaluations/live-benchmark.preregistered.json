@@ -1,12 +1,12 @@
 {
-  "version": 1,
-  "id": "reliability-governor-live-v2-2026-08-23",
+  "version": 2,
+  "id": "reliability-governor-live-v3-2026-08-25",
   "status": "locked-before-provider-run",
-  "lockedAt": "2026-08-23T04:38:50Z",
-  "statement": "These hashes freeze the task manifest, execution runner, and analysis before any provider-backed v2 decision run. Any change requires a new pre-registration id and lock.",
+  "lockedAt": "2026-08-25T13:50:19Z",
+  "statement": "These hashes freeze the task manifest, claim-coverage-aware runner, and analysis before any provider-backed v3 decision run. Any change requires a new pre-registration id and lock.",
   "files": {
-    "evaluations/live-benchmark.json": "sha256:c101b880b85923f542bc5db57a55d86aa1342d4560c626b8d55d5dcdad8c52b7",
-    "scripts/run-live-benchmark.mjs": "sha256:6967516f8fddaa27d6b467ca48883c18355d9c13e8b7ef51d9611904872c32b4",
+    "evaluations/live-benchmark.json": "sha256:74d0d8e45035acd4b5af4f277d4b6ed495e4ec1b3c433c75266995b76ac738e5",
+    "scripts/run-live-benchmark.mjs": "sha256:a8326544217b1e670c2d3a7dd5a22e284bce13a33da7a6da80f56597719b71ee",
     "scripts/live-benchmark-analysis.mjs": "sha256:e96ad8e0d577564b5160a5460a98a72277907615565d76c7c7a44f3ca99a38da"
   }
 }

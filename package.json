@@ -1,7 +1,7 @@
 {
   "name": "@chenjie1129/dsh-reliability-governor-plugin",
-  "version": "0.3.0",
-  "description": "Evidence-gated completion, trusted code verification, and bounded repair for DeepSeek Harness agents",
+  "version": "0.4.0",
+  "description": "Claim-covered evidence gates, trusted code verification, and bounded repair for DeepSeek Harness agents",
   "keywords": [
     "deepseek-harness",
     "dsh-plugin",

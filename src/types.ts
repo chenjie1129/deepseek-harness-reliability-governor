@@ -13,6 +13,68 @@ export type ReliabilityCheck =
   | { id: string; kind: 'code_verification_succeeded'; profile: string; minCount?: number }
   | { id: string; kind: 'no_tool_errors' }
 
+export type ReliabilityClaimImportance = 'critical' | 'important' | 'minor'
+export type ReliabilityClaimVerification = 'deterministic' | 'human-required' | 'unsupported'
+
+/** One outcome claim and the checks intended to support it. */
+export interface ReliabilityClaim {
+  id: string
+  statement: string
+  importance: ReliabilityClaimImportance
+  verification: ReliabilityClaimVerification
+  checkIds: string[]
+  /** Distinct evidence authorities required; several checks over one file count once. */
+  minimumIndependentSources?: number
+}
+
+export interface ReliabilityCoverageFinding {
+  code:
+    | 'claim_requires_human'
+    | 'claim_unsupported'
+    | 'missing_critical_claim'
+    | 'insufficient_independent_sources'
+    | 'exact_literal_brittleness'
+    | 'presence_only_evidence'
+    | 'trajectory_not_outcome'
+    | 'tool_success_not_outcome'
+    | 'orphan_check'
+    | 'shared_check'
+    | 'declared_claims_only'
+  severity: 'error' | 'warning'
+  message: string
+  claimId?: string
+  checkId?: string
+}
+
+export interface ReliabilityClaimCoverage {
+  claimId: string
+  importance: ReliabilityClaimImportance
+  verification: ReliabilityClaimVerification
+  supportingCheckIds: string[]
+  evidenceSources: string[]
+  requiredIndependentSources: number
+  sufficient: boolean
+}
+
+/** Structural coverage report. It does not judge whether a declared claim matches the user's intent. */
+export interface ReliabilityCoverageAssessment {
+  version: 1
+  status: 'ready' | 'review-required'
+  claims: ReliabilityClaimCoverage[]
+  coverage: {
+    critical: { covered: number; total: number; percent: number }
+    weighted: { coveredWeight: number; totalWeight: number; percent: number }
+  }
+  evidence: {
+    checkCount: number
+    usedCheckCount: number
+    independentSourceCount: number
+    orphanCheckIds: string[]
+  }
+  findings: ReliabilityCoverageFinding[]
+  receipt: string
+}
+
 /** Privacy-minimized result of one deployment-controlled code verifier run. */
 export interface CodeVerificationResult {
   version: 1
@@ -31,15 +93,27 @@ export interface CodeVerificationResult {
   receipt: string
 }
 
-/** Immutable completion contract written before verification. */
-export interface ReliabilityContract {
-  version: 1
+interface ReliabilityContractBase {
   contractId: string
   objective: string
   checks: ReliabilityCheck[]
   maxAttempts: number
   startedAtSeq: number
 }
+
+/** Legacy immutable contract retained so existing session logs remain readable. */
+export interface ReliabilityContractV1 extends ReliabilityContractBase {
+  version: 1
+}
+
+/** Claim-covered immutable contract used by current model-facing tools. */
+export interface ReliabilityContractV2 extends ReliabilityContractBase {
+  version: 2
+  claims: ReliabilityClaim[]
+  coverageAssessment: ReliabilityCoverageAssessment
+}
+
+export type ReliabilityContract = ReliabilityContractV1 | ReliabilityContractV2
 
 /** One check's privacy-minimized deterministic verdict. */
 export interface ReliabilityCheckResult {
