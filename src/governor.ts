@@ -8,6 +8,7 @@ import type {
   ReliabilityCheckResult,
   ReliabilityContract,
   ReliabilityContractAuthorship,
+  ReliabilityContractReviewReference,
   ReliabilityTerminal,
 } from './types.js'
 import type { ReliabilityClaim } from './types.js'
@@ -152,6 +153,7 @@ export function createContract(
     checks: ReliabilityCheck[]
     claims?: ReliabilityClaim[]
     authorship?: ReliabilityContractAuthorship
+    review?: ReliabilityContractReviewReference
     maxAttempts?: number
   },
   startedAtSeq: number,
@@ -186,6 +188,16 @@ export function createContract(
     throw new Error(`contract coverage requires review: ${errors.join('; ')}`)
   }
   if (input.authorship !== undefined) {
+    if (input.review !== undefined) {
+      return structuredClone({
+        version: 4 as const,
+        ...base,
+        claims: input.claims,
+        coverageAssessment,
+        authorship: input.authorship,
+        review: input.review,
+      })
+    }
     return structuredClone({
       version: 3 as const,
       ...base,

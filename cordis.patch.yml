@@ -1,6 +1,7 @@
 # Mount after the DeepSeek Harness base bundle. The plugin is opt-in and
-# contributes no network or client-side capability. Trusted code profiles are
-# deployment-configured and execute only through Harness subprocess/sandbox seams.
+# contributes a Web A2UI renderer and uses Harness's existing user-question
+# transport; it opens no listener or provider connection. Trusted code profiles
+# are deployment-configured and execute only through Harness subprocess/sandbox seams.
 - insert:
     - id: reliability-governor
       name: '@chenjie1129/dsh-reliability-governor-plugin'
@@ -16,3 +17,5 @@
           maxInputBytes: 32768
           maxOutputTokens: 3000
           timeoutMs: 45000
+        contractReview:
+          mode: required

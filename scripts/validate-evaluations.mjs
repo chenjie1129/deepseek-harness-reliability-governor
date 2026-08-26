@@ -94,7 +94,7 @@ for (const testCase of live.cases) {
 }
 
 const protocol = live.preregistration
-if (protocol?.protocolId !== 'reliability-governor-live-v4-2026-08-25') throw new Error('live benchmark needs the v4 protocol id')
+if (protocol?.protocolId !== 'reliability-governor-live-v5-2026-08-26') throw new Error('live benchmark needs the v5 protocol id')
 if (JSON.stringify(protocol.arms) !== JSON.stringify(['baseline', 'governed-model-contract', 'governed-reference-contract'])) {
   throw new Error('live benchmark needs the three pre-registered arms')
 }

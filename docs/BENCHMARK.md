@@ -7,7 +7,7 @@ This project separates two claims:
 
 The checked-in keyless benchmark tests the first claim. Only the pre-registered provider-backed benchmark can test the second. Neither makes an LLM deterministic.
 
-v0.5's scripted auxiliary-author tests prove call isolation, strict parsing, provenance, and receipt enforcement only. The current three-arm live protocol compares task-agent-authored contracts with independently authored reference contracts; it does not isolate the new auxiliary-author mode. A future decision-quality revision must add a pre-registered auxiliary-author arm with a fixed provider/model route and separately report omitted claims, false certification, false exhaustion, false abstention, latency, and token cost before the project claims that auxiliary authorship is net-positive.
+v0.6's scripted auxiliary-author and A2UI review tests prove isolation, protocol compatibility, strict parsing, provenance, receipt enforcement, and fail-closed decisions only. They do not measure whether users understand or improve contracts. The current three-arm live protocol compares task-agent-authored contracts with independently authored reference contracts; it does not isolate auxiliary authorship or human review. A future decision-quality revision must pre-register those arms and separately report omitted claims, false certification, false exhaustion, false abstention, latency, token cost, review time, and revision rate before the project claims either feature is net-positive.
 
 ## Current keyless evidence
 
@@ -31,9 +31,11 @@ Every case/trial block has three arms:
 2. `governed-model-contract`: otherwise identical profile with the exact packed plugin; the model decides whether and how to author a contract.
 3. `governed-reference-contract`: same governed profile, but the benchmark supplies an independently authored contract derived from the pre-registered oracle and requires the model to open it exactly.
 
+Both governed arms explicitly set `contractReview.mode: off`. This is a disclosed unattended benchmark control, not automatic approval: it keeps human choices from changing the already pre-registered three-arm estimand and produces unreviewed version 3 contracts. A later user-review experiment must be a separately pre-registered arm rather than retrofitted after results are seen.
+
 Reference-contract fidelity is measured from the durable contract event. A missing or modified contract is not silently accepted. Execution order uses a fixed three-way rotation within every block. Each run gets a new workspace and persisted Harness session. No outcome may be discarded.
 
-The v4 runner also records the contract coverage status, critical and weighted declared-claim coverage, independent-source count, finding codes, and assessment receipt. These fields audit structural evidence sufficiency. They do not establish that a model-authored claim set is semantically complete; the model-versus-reference arm difference remains the measurement for that authorship risk.
+The v5 runner also records the contract coverage status, critical and weighted declared-claim coverage, independent-source count, finding codes, and assessment receipt. These fields audit structural evidence sufficiency. They do not establish that a model-authored claim set is semantically complete; the model-versus-reference arm difference remains the measurement for that authorship risk.
 
 The full default is 20 cases × 5 trials × 3 arms = **300 agent runs**. Provider cost depends on the configured model.
 
@@ -54,7 +56,7 @@ npm run benchmark:live -- \
   --max-cases 2 \
   --trials 1 \
   --harness-root /absolute/path/to/deepseek-harness \
-  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz \
+  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.6.0.tgz \
   --output /absolute/path/to/pilot-report.json
 ```
 

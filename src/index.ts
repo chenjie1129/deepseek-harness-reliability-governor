@@ -15,6 +15,7 @@ import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/dsh-sandbox'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import type {} from '@deepseek-ai/dsh-user-questions'
 import {
   appendAttempt,
   appendTerminal,
@@ -49,13 +50,27 @@ import type {
   ReliabilityContractDraft,
 } from './types.js'
 import { canonicalJsonForComparison } from './receipts.js'
+import {
+  createReviewProposal,
+  requestContractReview,
+  resolveContractReviewConfig,
+} from './contract-review.js'
+import type {
+  ContractReviewConfig,
+  ResolvedContractReviewConfig,
+} from './contract-review.js'
+import type { ReliabilityContract, ReliabilityContractV3, ReliabilityContractV4 } from './types.js'
 
 export * from './governor.js'
 export * from './coverage.js'
 export * from './types.js'
+export * from './a2ui.js'
+export * from './contract-review.js'
 
 export const name = 'reliability-governor'
-export const inject = ['tools', 'systemPrompt', 'fs', 'skills', 'subprocess', 'sandbox', 'sandboxPolicy', 'llm']
+export const inject = [
+  'tools', 'systemPrompt', 'fs', 'skills', 'subprocess', 'sandbox', 'sandboxPolicy', 'llm', 'userQuestions',
+]
 
 export interface Config {
   /** Hard ceiling; a contract may request fewer attempts. */
@@ -72,6 +87,8 @@ export interface Config {
   codeVerificationMaxOutputBytes?: number
   /** Select who proposes the initial claim/check set. Certification remains deterministic in every mode. */
   contractAuthoring?: ContractAuthoringConfig
+  /** Require a UI-backed user decision over the exact contract before activation. */
+  contractReview?: ContractReviewConfig
 }
 
 const CodeVerificationProfileSchema = z.object({
@@ -94,6 +111,10 @@ const ContractAuthoringSchema = z.object({
   timeoutMs: z.number().default(45_000),
 })
 
+const ContractReviewSchema = z.object({
+  mode: z.union(['required', 'off'] as const).default('required'),
+})
+
 export const Config: z<Config> = z.object({
   maxAttempts: z.number().default(3),
   maxChecks: z.number().default(20),
@@ -102,6 +123,7 @@ export const Config: z<Config> = z.object({
   codeVerificationProfiles: z.array(CodeVerificationProfileSchema).default([]),
   codeVerificationMaxOutputBytes: z.number().default(64 * 1024),
   contractAuthoring: ContractAuthoringSchema,
+  contractReview: ContractReviewSchema,
 })
 
 interface ResolvedConfig {
@@ -112,6 +134,7 @@ interface ResolvedConfig {
   codeVerificationProfiles: ResolvedCodeVerificationProfile[]
   codeVerificationMaxOutputBytes: number
   contractAuthoring: ResolvedContractAuthoringConfig
+  contractReview: ResolvedContractReviewConfig
 }
 
 function positiveSafeInteger(name: string, value: number, maximum: number): number {
@@ -130,6 +153,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     'codeVerificationProfiles',
     'codeVerificationMaxOutputBytes',
     'contractAuthoring',
+    'contractReview',
   ].includes(key))
   if (unknown.length > 0) throw new Error(`reliability-governor: unknown config key(s): ${unknown.join(', ')}`)
   return {
@@ -144,6 +168,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
       1024 * 1024,
     ),
     contractAuthoring: resolveContractAuthoringConfig(config.contractAuthoring),
+    contractReview: resolveContractReviewConfig(config.contractReview),
   }
 }
 
@@ -255,15 +280,23 @@ function normalizeClaims(claims: ToolClaim[]): ReliabilityClaim[] {
   }))
 }
 
-function promptFor(mode: ResolvedContractAuthoringConfig['mode']): string {
+function promptFor(
+  mode: ResolvedContractAuthoringConfig['mode'],
+  reviewMode: ResolvedContractReviewConfig['mode'],
+): string {
   const authoring = mode === 'auxiliary-model'
     ? `Contract authorship mode is auxiliary-model. After read-only exploration and before mutation, call reliability_draft with contract_kind (general or code), the objective, and a concise, non-secret context summary. Review its assessment. For general work, pass the returned draft_receipt and exact objective, claims, and checks unchanged to reliability_begin. For code work with required trusted profiles, pass those exact fields to reliability_begin_code; required profiles are injected before the draft receipt is created. The auxiliary model has no tools or certification authority. Do not bypass, edit, reuse, or impersonate its receipt.`
     : mode === 'manual'
       ? `Contract authorship mode is manual. Do not invent a claim set. Use only a contract supplied by the user or a reviewed reference source. The runtime records this as caller-declared provenance, not authenticated human approval. If no such contract is available, explain that manual input is required. Deployment-required code profiles may still be opened through reliability_begin_code.`
       : `Contract authorship mode is current-agent. Draft the claims and checks yourself, then preflight them with reliability_assess before reliability_begin.`
+  const review = reviewMode === 'required'
+    ? 'Contract review mode is required. reliability_begin and reliability_begin_code pause at activation and show the exact proposal to the live root user. Only an approved, receipt-bound decision opens the contract. A revision, rejection, cancellation, unavailable UI, or malformed response leaves it inactive. Never claim that user approval certifies the later outcome.'
+    : 'Contract review mode is off for this unattended deployment. No human approval is claimed or recorded.'
   return `Reliability Governor is available for evidence-gated completion.
 
 ${authoring}
+
+${review}
 
 For a substantive task with observable success criteria—especially code/file changes, tool workflows, or a user request for stable/reliable execution—map every success claim to evidence before opening a contract. Use the smallest independent evidence set that covers every claim; multiple checks over one file or tool are one source, not independent corroboration. The governor evaluates coverage and checks without using an LLM and records durable receipts.
 
@@ -331,7 +364,7 @@ function bindAuxiliaryDraft(
 ): { draft: ReliabilityContractDraft; authorship: ReliabilityContractAuthorship } {
   const boundDraft = requireBoundDraft(draft, receipt, objective, claims, checks)
   if (session.events.some(event => event.type === 'reliability/contract'
-    && event.data.version === 3
+    && (event.data.version === 3 || event.data.version === 4)
     && event.data.authorship.mode === 'auxiliary-model'
     && event.data.authorship.draftReceipt === boundDraft.receipt)) {
     throw new Error('draft_receipt has already been used to open a contract; request a fresh draft')
@@ -369,12 +402,76 @@ function pluginMessage(text: string) {
   })
 }
 
+function requireAuthoredContract(contract: ReliabilityContract): ReliabilityContractV3 {
+  if (contract.version !== 3) throw new Error('internal error: reviewed activation requires an authored contract')
+  return contract
+}
+
+async function activateContract(
+  ctx: Context,
+  agent: Agent,
+  contractKind: 'general' | 'code',
+  candidate: ReliabilityContract,
+  reviewConfig: ResolvedContractReviewConfig,
+  pendingReviews: WeakSet<Agent>,
+  signal: AbortSignal,
+): Promise<{ status: string; contract?: ReliabilityContract; review?: unknown; feedback?: string }> {
+  if (reviewConfig.mode === 'off') {
+    agent.session.append('reliability/contract', candidate)
+    return { status: 'active', contract: candidate }
+  }
+  const authored = requireAuthoredContract(candidate)
+  if (pendingReviews.has(agent)) {
+    throw new Error('a contract review is already pending for this live agent')
+  }
+  const proposal = createReviewProposal({
+    contractId: authored.contractId,
+    contractKind,
+    objective: authored.objective,
+    claims: authored.claims,
+    checks: authored.checks,
+    maxAttempts: authored.maxAttempts,
+    authorship: authored.authorship,
+    coverageAssessment: authored.coverageAssessment,
+  })
+  pendingReviews.add(agent)
+  try {
+    const result = await requestContractReview(ctx, agent, proposal, signal)
+    if (result.reference === undefined) {
+      const status = result.review.decision === 'cancelled'
+        ? 'review-cancelled'
+        : result.review.decision === 'unavailable'
+          ? 'review-unavailable'
+          : result.review.decision
+      return {
+        status,
+        review: result.review,
+        ...(result.feedback === undefined ? {} : { feedback: result.feedback }),
+      }
+    }
+    const contract: ReliabilityContractV4 = structuredClone({
+      ...authored,
+      version: 4 as const,
+      review: result.reference,
+    })
+    agent.session.append('reliability/contract', contract)
+    return { status: 'active', contract, review: result.review }
+  } finally {
+    pendingReviews.delete(agent)
+  }
+}
+
 /** Register the prompt policy, tools, durable events, and bounded stopping hook. */
 export function apply(ctx: Context, rawConfig: Config = {}): void {
   const config = resolveConfig(rawConfig)
+  const pendingReviews = new WeakSet<Agent>()
 
   registerCodeVerificationSkill(ctx)
-  ctx.systemPrompt.section({ name: 'reliability:policy', order: 118, text: promptFor(config.contractAuthoring.mode) })
+  ctx.systemPrompt.section({
+    name: 'reliability:policy',
+    order: 118,
+    text: promptFor(config.contractAuthoring.mode, config.contractReview.mode),
+  })
 
   if (config.contractAuthoring.mode === 'auxiliary-model') {
     const authorConfig = config.contractAuthoring
@@ -461,7 +558,8 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
     async execute(args, exec) {
-      const session = requireAgent(exec).session
+      const agent = requireAgent(exec)
+      const session = agent.session
       const state = foldReliability(session.events)
       if (state.contract !== undefined && state.terminal === undefined) {
         throw new Error(`contract ${state.contract.contractId} is still active; verify or abstain before opening another`)
@@ -489,8 +587,9 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
         authorship,
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
-      session.append('reliability/contract', contract)
-      return asJson({ status: 'active', contract })
+      return asJson(await activateContract(
+        ctx, agent, 'general', contract, config.contractReview, pendingReviews, exec.signal,
+      ))
     },
   }))
 
@@ -510,8 +609,9 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       schema: { type: 'json' },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
-    execute(args, exec) {
-      const session = requireAgent(exec).session
+    async execute(args, exec) {
+      const agent = requireAgent(exec)
+      const session = agent.session
       const state = foldReliability(session.events)
       if (state.contract !== undefined && state.terminal === undefined) {
         throw new Error(`contract ${state.contract.contractId} is still active; verify or abstain before opening another`)
@@ -579,12 +679,13 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
         authorship,
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
-      session.append('reliability/contract', contract)
-      return Promise.resolve(asJson({
-        status: 'active',
+      const activated = await activateContract(
+        ctx, agent, 'code', contract, config.contractReview, pendingReviews, exec.signal,
+      )
+      return asJson({
+        ...activated,
         requiredProfiles: requiredProfiles.map(profile => profile.id),
-        contract,
-      }))
+      })
     },
   }))
 

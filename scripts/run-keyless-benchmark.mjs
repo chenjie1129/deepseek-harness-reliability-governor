@@ -215,6 +215,7 @@ async function createLoop(adapter, files, state, governed) {
   })
   if (governed) apply(ctx, {
     maxAttempts: 2,
+    contractReview: { mode: 'off' },
     codeVerificationProfiles: [{
       id: 'unit-tests',
       description: 'Run the immutable benchmark test profile.',

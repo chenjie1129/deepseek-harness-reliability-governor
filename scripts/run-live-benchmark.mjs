@@ -27,7 +27,7 @@ import {
 
 const root = new URL('../', import.meta.url)
 const defaultHarnessRoot = fileURLToPath(new URL('../../deepseek-harness-main/', import.meta.url))
-const defaultPlugin = fileURLToPath(new URL('../chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz', import.meta.url))
+const defaultPlugin = fileURLToPath(new URL('../chenjie1129-dsh-reliability-governor-plugin-0.6.0.tgz', import.meta.url))
 const defaultOutput = fileURLToPath(new URL('../evaluations/latest-live-report.json', import.meta.url))
 const manifestUrl = new URL('evaluations/live-benchmark.json', root)
 const preregistrationUrl = new URL('evaluations/live-benchmark.preregistered.json', root)
@@ -271,6 +271,11 @@ async function ensurePnpmPath(temporaryRoot, originalPath) {
   await writeFile(shim, '#!/bin/sh\nexec corepack pnpm "$@"\n', 'utf8')
   await chmod(shim, 0o755)
   return `${shimDir}${sep === '\\' ? ';' : ':'}${originalPath ?? ''}`
+}
+
+async function configureUnattendedReview(home) {
+  const patch = `# The pre-registered model benchmark isolates governor behavior from human choices.\n- id: reliability-governor\n  config:\n    contractReview:\n      mode: off\n`
+  await writeFile(join(home, 'profiles', 'headless', 'cordis.patch.yml'), patch, 'utf8')
 }
 
 async function walkFiles(directory) {
@@ -589,6 +594,7 @@ try {
     if (install.exitCode !== 0) {
       throw new Error(`${arm} profile plugin installation failed: ${boundedTranscript(install.stderr).slice(-1000)}`)
     }
+    await configureUnattendedReview(homes[arm])
   }
 
   for (const [caseIndex, testCase] of cases.entries()) {
@@ -686,6 +692,7 @@ try {
     caseCount: cases.length,
     runCount: results.length,
     transcriptPolicy: args.includeTranscripts ? 'bounded final stdout included' : 'stdout hash only',
+    contractReviewMode: 'off-for-pre-registered-unattended-arms',
     arms,
     summary: summaries,
     pairedExactMcNemar: falseSuccessMcNemar,

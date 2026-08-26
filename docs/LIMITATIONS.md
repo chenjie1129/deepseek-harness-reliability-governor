@@ -19,7 +19,9 @@ Coverage percentages are not truth probabilities. A single authoritative oracle 
 
 Optional auxiliary authorship does not remove this gap. A second model can discover a requirement the task agent missed, but it can also omit the same requirement, follow misleading context, or choose brittle checks. It is correlated stochastic planning, not an independent oracle. Receipt binding proves that activation used the recorded draft; it does not prove that the draft was correct.
 
-`manual` mode is caller-declared provenance. Because a model-facing tool invocation can reproduce the same arguments as a human, the plugin cannot authenticate human review. Deployments that require approval must enforce it through an external signed policy, protected configuration, or a separate human-approval capability.
+`manual` mode remains caller-declared authorship provenance. The separate default contract review is stronger: Harness collects it through the exact live-root user-question provider and binds it to the proposal receipt. It still cannot establish a legal identity, prove comprehension, resist a malicious same-process plugin, or provide dual control. Deployments needing those properties must use external signed policy or a protected approval system.
+
+The Web A2UI renderer is an optional presentation face. The same request always contains a native Markdown/JSON fallback, and the server cannot attest which capable client rendered it. The durable review record therefore describes the presentation offered. Renderer failure, stale/tampered actions, cancellation, malformed answers, and missing providers do not activate a contract.
 
 The standard Harness log normally records tool-call arguments. Although the custom auxiliary draft event excludes raw context and auxiliary reasoning, any context supplied to `reliability_draft` may be durable elsewhere in the session. Never put secrets or private source in that field.
 

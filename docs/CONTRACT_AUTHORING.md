@@ -1,6 +1,6 @@
 # Contract authoring
 
-Contract authoring and outcome judgment are different jobs. An LLM can help identify what should be checked; it is not trusted to decide whether its own work passed. Reliability Governor v0.5 therefore makes authorship configurable while leaving certification in deterministic checks and deployment-controlled verifiers.
+Contract authoring, user approval, and outcome judgment are three different jobs. An LLM can help identify what should be checked; it is not trusted to decide whether its own work passed. Reliability Governor v0.6 makes authorship configurable, requires user review by default, and leaves certification in deterministic checks and deployment-controlled verifiers.
 
 ## The three modes
 
@@ -8,9 +8,9 @@ Contract authoring and outcome judgment are different jobs. An LLM can help iden
 | --- | --- | --- | --- |
 | `current-agent` (default) | No | Lowest setup and cost; the task agent proposes claims/checks | Caller-declared |
 | `auxiliary-model` | One bounded call per draft | A separately routed model proposes the initial contract | Receipt-bound to that exact draft, but not an independent oracle |
-| `manual` | No | User or reviewed reference contract | Caller-declared; the plugin cannot authenticate who supplied tool arguments |
+| `manual` | No | User or reviewed reference contract | Caller-declared authorship; later UI review is recorded separately |
 
-The default is deliberately zero-configuration and makes no hidden provider request.
+The authoring default is deliberately zero-configuration and makes no hidden provider request. Independently, `contractReview.mode: required` pauses activation for a Harness UI decision. It does not make the author a separate agent or provider.
 
 ## Is the auxiliary author an agent?
 
@@ -23,7 +23,8 @@ flowchart LR
   C --> D[Strict JSON claims and checks]
   D --> E[Deterministic coverage preflight]
   E --> F[Receipt-bound contract]
-  F --> G[Task and repair loop]
+  F --> R[User reviews exact proposal receipt]
+  R --> G[Task and repair loop]
   G --> H[Deterministic or external oracle]
   H --> I[certified / exhausted / abstained]
 ```
@@ -74,18 +75,18 @@ The custom draft event does not contain raw auxiliary reasoning and does not dup
 
 ## What receipt binding proves—and does not prove
 
-Receipt binding proves that the activated contract matches the successful auxiliary draft recorded by this plugin. The version 3 contract records that exact `draftReceipt`, and reuse is rejected. This prevents the task agent from silently changing or replaying the draft between authoring and activation.
+Draft receipt binding proves that the proposed contract matches the successful auxiliary draft recorded by this plugin. User approval then produces a version 4 contract that references both the exact proposal and review receipts; draft reuse is rejected. This prevents the task agent from silently changing or replaying the draft between authoring and activation.
 
 It does not prove that:
 
 - the auxiliary model found every requirement;
 - the claim wording matches the user's real intent;
 - the selected checks are good or independent;
-- a human reviewed the draft;
+- a human understood or corrected the draft merely because it was displayed;
 - the provider signed the output; or
 - the outcome passed.
 
-Only later deterministic or external evidence decides the outcome. For high-impact work, compare the draft with an independently authored reference or require a real human approval outside this caller-declared interface.
+Only later deterministic or external evidence decides the outcome. The default Harness UI review is stronger than caller-declared tool arguments because it is collected through the exact live-root question channel, but it is not a signed identity or comprehension proof. For high-impact work, compare the draft with an independently authored reference and use protected deployment policy where legal identity or dual control is required.
 
 ## Evaluation status
 

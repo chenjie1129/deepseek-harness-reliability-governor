@@ -103,7 +103,7 @@ async function loopHarness(adapter: ScriptedAdapter, files: Map<string, string>,
   ctx.llm.registerAdapter(['mock'], adapter)
   if (governed) {
     ctx.provide('fs', memoryFs(files) as FileSystem)
-    apply(ctx, { maxAttempts: 2 })
+    apply(ctx, { maxAttempts: 2, contractReview: { mode: 'off' } })
     ctx.tools.register(defineContentToolFixture({
       name: 'make_file',
       description: 'Create a fixture file.',

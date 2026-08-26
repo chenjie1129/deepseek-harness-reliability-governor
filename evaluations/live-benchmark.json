@@ -6,7 +6,7 @@
   "minimumTrialsForDecision": 5,
   "outcomeMarker": "BENCHMARK_OUTCOME",
   "preregistration": {
-    "protocolId": "reliability-governor-live-v4-2026-08-25",
+    "protocolId": "reliability-governor-live-v5-2026-08-26",
     "arms": ["baseline", "governed-model-contract", "governed-reference-contract"],
     "unitOfAssignment": "case-trial block",
     "armOrder": "deterministic three-way rotation by case index plus trial",

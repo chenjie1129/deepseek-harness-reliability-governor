@@ -6,7 +6,7 @@
 
 > **Unofficial community project. Public beta testers wanted.** Try three to five disposable local tasks and report counterexamples through the [15-minute feedback protocol](FEEDBACK.md). False certification, false exhaustion, false abstention, repair regression, brittle checks, and Harness compatibility reports are especially useful.
 
-An opt-in DeepSeek Harness bundle that changes completion from a model assertion into a deterministic evidence decision.
+An opt-in DeepSeek Harness bundle that lets a user review the proposed evidence contract, then changes completion from a model assertion into a deterministic evidence decision.
 
 It does **not** make an LLM deterministic. It makes a narrower promise: while a reliability contract is active, the agent is steered until observable checks pass, its bounded repair budget is exhausted, or it abstains. Every attempt and terminal outcome is recorded in the durable session log with a content receipt.
 
@@ -18,6 +18,7 @@ It does **not** make an LLM deterministic. It makes a narrower promise: while a 
 | --- | --- | --- |
 | Keyless Harness AgentLoop fault matrix | 9 cases × 10 trials × 2 arms = 180 runs; mechanism gates pass; zero governed false completions and false certifications | The active contract and lifecycle enforce declared deterministic checks under scripted faults. |
 | Scripted auxiliary-author boundary tests | Strict parsing, no-tool calls, provenance, and receipt binding pass | The isolation mechanism works with a scripted stream; this is not evidence that a live model writes better contracts. |
+| A2UI review boundary tests | Official A2UI v0.9.1 processor accepts the fixed surface; approval, revision, rejection, tampering, fallback, and missing-provider paths fail closed | The exact proposal can require a UI-backed Harness decision before activation; this does not prove the proposal is correct. |
 | Pre-registered provider-backed benchmark | 20 tasks × 5 trials × 3 arms planned; not run | No live-model quality, latency, cost, or net-utility claim yet. |
 
 The project is deliberately looking for evidence against its design. See [Beta feedback](FEEDBACK.md) for the independent-oracle protocol and privacy rules.
@@ -41,7 +42,9 @@ Harness already has goal and iterative workflow plugins, but their current docum
 - `reliability_code_verify` — execute one immutable profile through Harness-managed subprocess and sandbox services.
 - `agent/turn-stopping` enforcement — verify before an active contract is allowed to settle, then steer a bounded repair or truthfully report certification/exhaustion.
 
-Supported checks in v0.5:
+By default, `reliability_begin` pauses before activation and presents the exact objective, claims, checks, authorship, coverage warnings, and repair budget for user review. The Web client uses a fixed [A2UI v0.9.1](https://a2ui.org/) Basic-catalog surface; clients without that renderer receive the same proposal through Harness's native question UI. Approval is bound to the proposal receipt. Revision, rejection, cancellation, a stale action, or an unavailable question provider leaves no active contract. A2UI is presentation—not the approval authority and not the outcome judge; Harness's live-root user-question channel records the choice, and later deterministic checks decide certification. See [Contract review](docs/CONTRACT_REVIEW.md).
+
+Supported checks in v0.6:
 
 | Check | Pass condition |
 | --- | --- |
@@ -62,7 +65,7 @@ Trusted verifier evidence is invalidated conservatively by any later non-governo
 
 `file_contains` and `no_tool_errors` intentionally have narrow meanings. The policy warns the model not to use an exact literal for equivalent-output requirements and not to treat a recovered intermediate tool error as evidence that the final result failed. The live benchmark includes JSON-format equivalence and a recoverable-tool-error task to measure those authorship mistakes rather than assume them away.
 
-Before activation, v0.5 maps every declared success claim to checks and counts independent evidence authorities rather than raw checks. Two checks over one file count as one source. `human-required`, `unsupported`, and under-supported claims produce `review-required`; brittle checks produce visible warnings. See [Contract coverage](docs/CONTRACT_COVERAGE.md). Coverage is structural: it cannot detect a requirement the model omitted or prove that a claim faithfully represents the user's intent.
+Before activation, v0.6 maps every declared success claim to checks and counts independent evidence authorities rather than raw checks. Two checks over one file count as one source. `human-required`, `unsupported`, and under-supported claims produce `review-required`; brittle checks produce visible warnings. See [Contract coverage](docs/CONTRACT_COVERAGE.md). Coverage is structural: it cannot detect a requirement the model omitted or prove that a claim faithfully represents the user's intent.
 
 Contract authorship is configurable. The zero-setup default is `current-agent`; `auxiliary-model` routes one isolated draft call through Harness's existing provider/model layer; `manual` is for a user or reviewed reference contract but is honestly labeled caller-declared, not authenticated. Auxiliary drafts must match a durable receipt exactly before activation. See [Contract authoring](docs/CONTRACT_AUTHORING.md).
 
@@ -75,12 +78,12 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.5.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.6.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
 
-For a headless profile, replace `web` with its profile name. The installed profile must list `@chenjie1129/dsh-reliability-governor-plugin` in `dsh.profile.bundles`; merely placing the package beside Harness does not activate it.
+For a headless profile, replace `web` with its profile name. The interactive default needs a registered Harness user-question provider; without one, review returns `review-unavailable` and no contract activates. Controlled unattended workflows may explicitly set `contractReview.mode: off`. The installed profile must list `@chenjie1129/dsh-reliability-governor-plugin` in `dsh.profile.bundles`; merely placing the package beside Harness does not activate it.
 
 The shipped bundle layer mounts one plugin row:
 
@@ -100,9 +103,11 @@ The shipped bundle layer mounts one plugin row:
           maxInputBytes: 32768
           maxOutputTokens: 3000
           timeoutMs: 45000
+        contractReview:
+          mode: required
 ```
 
-The empty code-profile list is a fail-safe default because repositories have different checks. Configure reviewed test/typecheck/build argv as described in [Trusted code verification](docs/CODE_VERIFICATION.md). The bundled `reliability-code-verification` skill teaches the workflow; the runtime profile, not the skill, is the independent judge.
+The empty code-profile list is a fail-safe default because repositories have different checks. Configure reviewed test/typecheck/build argv as described in [Trusted code verification](docs/CODE_VERIFICATION.md). The bundled `reliability-code-verification` skill teaches the workflow; the runtime profile, not the skill, is the independent judge. `contractReview.mode: required` is the interactive default. Unattended evaluation or automation must opt out explicitly with `mode: off`; that creates an unreviewed version 3 contract and must not be reported as user-approved.
 
 Keep `current-agent` unless you specifically want an extra authoring call. For `auxiliary-model`, first configure credentials and the exact provider route in Harness Models, then add only `provider`, `model`, and optional `reasoningEffort` under `contractAuthoring`; the governor never stores provider credentials. There is no automatic route fallback.
 
@@ -171,10 +176,11 @@ The keyless benchmark proves the governor's enforcement mechanics using the real
 - The model still chooses whether a task needs a contract and which checks express success. A bad contract can certify the wrong thing.
 - Out-of-band workspace changes that produce no Harness tool event are not detected; use isolated workspaces and prevent concurrent external writers.
 - Deterministic checks improve outcome reliability, not wording consistency.
-- v0.5 does not judge visual quality, semantic correctness beyond configured checks, omitted claims, remote state without authoritative evidence, or unknown side-effect outcomes. Auxiliary authorship does not remove these limits.
+- A UI approval establishes that the exact proposal was accepted through the live Harness question channel. It does not authenticate a legal identity, prove that the user understood it, or certify the outcome.
+- v0.6 does not judge visual quality, semantic correctness beyond configured checks, omitted claims, remote state without authoritative evidence, or unknown side-effect outcomes. Auxiliary authorship and A2UI review do not remove these limits.
 - Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.
 
-See [Contract authoring](docs/CONTRACT_AUTHORING.md), [Contract coverage](docs/CONTRACT_COVERAGE.md), [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
+See [Contract review](docs/CONTRACT_REVIEW.md), [Contract authoring](docs/CONTRACT_AUTHORING.md), [Contract coverage](docs/CONTRACT_COVERAGE.md), [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
 
 ## License
 

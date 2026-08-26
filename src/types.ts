@@ -117,6 +117,34 @@ export interface ReliabilityContractDraft {
   receipt: string
 }
 
+export type ReliabilityContractReviewDecision =
+  | 'approved'
+  | 'revision-requested'
+  | 'rejected'
+  | 'cancelled'
+  | 'unavailable'
+
+/** Privacy-minimized record of one UI-backed decision over an exact proposal receipt. */
+export interface ReliabilityContractReview {
+  version: 1
+  proposalReceipt: string
+  contractKind: 'general' | 'code'
+  decision: ReliabilityContractReviewDecision
+  channel: 'harness-user-questions'
+  presentation: 'a2ui-v0.9.1-with-native-fallback'
+  feedback?: { bytes: number; receipt: string }
+  receipt: string
+}
+
+/** Approved review reference embedded into the activated contract. */
+export interface ReliabilityContractReviewReference {
+  version: 1
+  proposalReceipt: string
+  reviewReceipt: string
+  channel: ReliabilityContractReview['channel']
+  presentation: ReliabilityContractReview['presentation']
+}
+
 /** Privacy-minimized result of one deployment-controlled code verifier run. */
 export interface CodeVerificationResult {
   version: 1
@@ -163,7 +191,20 @@ export interface ReliabilityContractV3 extends ReliabilityContractBase {
   authorship: ReliabilityContractAuthorship
 }
 
-export type ReliabilityContract = ReliabilityContractV1 | ReliabilityContractV2 | ReliabilityContractV3
+/** Claim-covered contract whose exact proposal was approved through a UI-backed Harness decision. */
+export interface ReliabilityContractV4 extends ReliabilityContractBase {
+  version: 4
+  claims: ReliabilityClaim[]
+  coverageAssessment: ReliabilityCoverageAssessment
+  authorship: ReliabilityContractAuthorship
+  review: ReliabilityContractReviewReference
+}
+
+export type ReliabilityContract =
+  | ReliabilityContractV1
+  | ReliabilityContractV2
+  | ReliabilityContractV3
+  | ReliabilityContractV4
 
 /** One check's privacy-minimized deterministic verdict. */
 export interface ReliabilityCheckResult {
@@ -204,11 +245,14 @@ declare module '@deepseek-ai/dsh-session/types' {
     'reliability/code-verification': CodeVerificationResult
     /** Records one bounded auxiliary-model claim/check draft without raw prompts or reasoning. */
     'reliability/contract-draft': ReliabilityContractDraft
+    /** Records one UI-backed decision bound to the exact proposed contract receipt. */
+    'reliability/contract-review': ReliabilityContractReview
   }
 }
 
 export interface FoldedReliabilityState {
   latestDraft?: ReliabilityContractDraft
+  latestReview?: ReliabilityContractReview
   contract?: ReliabilityContract
   attempts: ReliabilityAttempt[]
   terminal?: ReliabilityTerminal
@@ -217,6 +261,7 @@ export interface FoldedReliabilityState {
 /** Reconstruct the latest governor state from the durable session log. */
 export function foldReliability(events: readonly SessionEvent[]): FoldedReliabilityState {
   let latestDraft: ReliabilityContractDraft | undefined
+  let latestReview: ReliabilityContractReview | undefined
   let contract: ReliabilityContract | undefined
   let attempts: ReliabilityAttempt[] = []
   let terminal: ReliabilityTerminal | undefined
@@ -224,6 +269,8 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
   for (const event of events) {
     if (event.type === 'reliability/contract-draft') {
       latestDraft = event.data
+    } else if (event.type === 'reliability/contract-review') {
+      latestReview = event.data
     } else if (event.type === 'reliability/contract') {
       contract = event.data
       attempts = []
@@ -237,6 +284,7 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
 
   return {
     ...(latestDraft === undefined ? {} : { latestDraft }),
+    ...(latestReview === undefined ? {} : { latestReview }),
     ...(contract === undefined ? {} : { contract }),
     attempts,
     ...(terminal === undefined ? {} : { terminal }),

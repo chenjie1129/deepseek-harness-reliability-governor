@@ -6,6 +6,8 @@
     maxFileBytes: 1048576
     autoVerifyAtTurnStop: true
     codeVerificationMaxOutputBytes: 65536
+    contractReview:
+      mode: required
     codeVerificationProfiles:
       - id: unit-tests
         description: Run the repository unit test suite.

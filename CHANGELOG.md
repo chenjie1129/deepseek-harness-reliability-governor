@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.6.0
+
+- Require a UI-backed Harness decision over the exact proposed evidence contract before activation by default.
+- Add a fixed, bounded A2UI v0.9.1 Basic-catalog Web surface with native Harness question fallback.
+- Add receipt-bound version 4 contracts and privacy-minimized `reliability/contract-review` events.
+- Fail closed on revision, rejection, cancellation, unavailable providers, malformed answers, stale actions, and renderer errors.
+- Add explicit `contractReview.mode: off` for disclosed unattended runs, preserving unreviewed version 3 contracts.
+- Add official A2UI processor compatibility and adversarial review-boundary tests without making a user-comprehension or model-quality claim.
+
 ## 0.5.0
 
 - Add configurable `current-agent`, `auxiliary-model`, and `manual` contract-authoring modes while keeping deterministic/external checks as the only certification authority.

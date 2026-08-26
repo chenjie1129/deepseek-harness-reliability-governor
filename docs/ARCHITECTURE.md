@@ -11,6 +11,10 @@ inactive
    | or receipt-bound reliability_draft: ready
    | reliability_begin / reliability_begin_code
    v
+review-pending -- revise/reject/cancel/unavailable --> inactive
+   |
+   | exact proposal approved through Harness userQuestions
+   v
 active -- check passes ------------------------> certified
    |
    | check fails, attempts remain
@@ -25,7 +29,7 @@ active -- check passes ------------------------> certified
 
 Only `active` causes turn-stopping enforcement. Every transition is reconstructed from the append-only session log.
 
-`reliability_assess` is a preflight, not a lifecycle state. It groups checks by evidence authority, maps them to declared claims, and returns `ready` or `review-required` without inspecting output or writing a contract event. New `reliability_begin` calls store a version 3 contract containing claims, immutable coverage assessment, and explicit authorship provenance. Version 1 and 2 contract events remain readable for session compatibility.
+`reliability_assess` is a preflight, not a lifecycle state. It groups checks by evidence authority, maps them to declared claims, and returns `ready` or `review-required` without inspecting output or writing a contract event. In the interactive default, a ready proposal is receipt-bound and sent to the exact live root user's question channel. Only approval stores a version 4 contract containing claims, immutable coverage assessment, authorship provenance, and review reference. Revision, rejection, cancellation, or unavailable UI writes a review event but no contract. Explicit unattended mode stores the unreviewed version 3 contract. Versions 1–3 remain readable for session compatibility.
 
 ## DeepSeek Harness integration rules
 
@@ -33,7 +37,8 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 
 - one standalone npm bundle declares `dsh.bundle.patch` and inserts one Cordis plugin row;
 - ESM and strict TypeScript with explicit `.js` relative imports;
-- `inject` declares tools, prompt, filesystem, skill, subprocess, sandbox, sandbox-policy, and provider-neutral LLM seams;
+- `inject` declares tools, prompt, filesystem, skill, subprocess, sandbox, sandbox-policy, provider-neutral LLM, and user-question seams;
+- the optional Web face declares `dsh.client`, registers ahead of the generic question fallback, and renders only a fixed A2UI v0.9.1 Basic-catalog envelope;
 - tool definitions use `ctx.tools.register(defineTool(...))`;
 - policy text uses `ctx.systemPrompt.section(...)` and is therefore model-visible;
 - bounded continuation uses the serial `agent/turn-stopping` lifecycle hook and `agent.steer(...)`;
@@ -51,14 +56,21 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 - `reliability/terminal` records certified/exhausted/abstained, reason, linked attempt receipt when present, and terminal receipt.
 - `reliability/code-verification` records an immutable profile receipt, exit/timing/sandbox facts, privacy-minimized output receipts, and the trusted verdict.
 - `reliability/contract-draft` records a successful auxiliary draft, coverage assessment, route/prompt provenance, usage when available, and a receipt. It excludes auxiliary reasoning and does not duplicate raw context.
+- `reliability/contract-review` records a UI-backed decision over an exact proposal receipt, the offered A2UI-with-native-fallback presentation, and a receipt. Optional feedback is represented only by its byte count and hash in this custom event.
 
 These are required events because they alter whether a session may truthfully settle. A runtime that cannot interpret them should refuse continuation rather than silently discard the contract.
 
 ## Evidence boundaries
 
-Contract coverage counts authorities, not assertions. Normalized aliases of one workspace path share a source; all ordinary tool and trajectory checks conservatively share the Harness tool-event source; and trusted verifier checks share a source by profile. At least one claim must be critical, and every declared claim must be deterministic and meet its `minimumIndependentSources` value before a version 3 contract can activate. The assessment warns about brittle check kinds but does not block on warnings.
+Contract coverage counts authorities, not assertions. Normalized aliases of one workspace path share a source; all ordinary tool and trajectory checks conservatively share the Harness tool-event source; and trusted verifier checks share a source by profile. At least one claim must be critical, and every declared claim must be deterministic and meet its `minimumIndependentSources` value before a version 3 or 4 contract can activate. The assessment warns about brittle check kinds but does not block on warnings.
 
-This is structural coverage only. The runtime cannot infer a requirement omitted from the claim list or decide whether the claim text matches the user's intent. Reference-authored contracts and human review remain stronger sources of semantic completeness.
+This is structural coverage only. The runtime cannot infer a requirement omitted from the claim list or decide whether the claim text matches the user's intent. Reference-authored contracts and user review remain stronger sources of semantic completeness, but approval still does not prove completeness.
+
+## Receipt-bound user review
+
+`reliability_begin` and `reliability_begin_code` calculate one proposal receipt over the exact contract kind, objective, normalized claims/checks, effective repair budget, authorship, and coverage assessment. The server passes a deterministic A2UI envelope plus readable native Markdown fallback to `ctx.userQuestions.ask({ agent, ... })`. Harness permits this only for the exact live runtime root and rejects delegated child agents.
+
+The A2UI face is a presentation adapter, not an agent or authority. It uses the official v0.9.1 processor and Basic catalog, accepts only one bounded governor envelope, and returns an ordinary structured Harness answer. Action name, source component, surface ID, question ID, option labels, and proposal receipt must all match. Invalid or stale input never maps to approval. The server records the decision independently and activates only when the approved review receipt references the same proposal. See [Contract review](CONTRACT_REVIEW.md).
 
 File checks:
 
@@ -111,4 +123,4 @@ Harness currently exposes no authoritative, universal side-effect classification
 
 ## Why no LLM outcome judge
 
-An LLM outcome evaluator adds cost, latency, correlated blind spots, prompt-injection exposure, and another stochastic decision. Deterministic graders are preferred whenever an outcome can be checked mechanically. v0.5 may use an LLM before mutation to propose what should be examined, but its output is only contract input and never pass/fail evidence. Semantic and visual evaluators can be added later as explicitly lower-confidence check providers, not mixed into the trusted deterministic core.
+An LLM outcome evaluator adds cost, latency, correlated blind spots, prompt-injection exposure, and another stochastic decision. Deterministic graders are preferred whenever an outcome can be checked mechanically. v0.6 may use an LLM before mutation to propose what should be examined and a user may approve that proposal, but neither is pass/fail evidence. Semantic and visual evaluators can be added later as explicitly lower-confidence check providers, not mixed into the trusted deterministic core.

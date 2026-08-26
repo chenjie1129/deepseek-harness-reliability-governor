@@ -1,7 +1,7 @@
 {
   "name": "@chenjie1129/dsh-reliability-governor-plugin",
-  "version": "0.5.0",
-  "description": "Receipt-bound contract authorship, deterministic evidence gates, and bounded repair for DeepSeek Harness agents",
+  "version": "0.6.0",
+  "description": "A2UI contract review, receipt-bound authorship, deterministic evidence gates, and bounded repair for DeepSeek Harness agents",
   "keywords": [
     "deepseek-harness",
     "dsh-plugin",
@@ -32,6 +32,7 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./client": "./dist/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -49,10 +50,15 @@
     "CONTRIBUTING.md",
     "CHANGELOG.md",
     "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md",
+    "licenses",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build:node": "tsc -p tsconfig.json",
+    "typecheck:client": "tsc -p tsconfig.client.json",
+    "build:client": "node scripts/build-client.mjs",
+    "build": "npm run build:node && npm run typecheck:client && npm run build:client",
     "test": "vitest run",
     "test:watch": "vitest",
     "eval:validate": "node scripts/validate-evaluations.mjs",
@@ -68,6 +74,13 @@
     "prepack": "npm run build"
   },
   "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-user-questions"
+      ],
+      "platform": "web"
+    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
@@ -84,23 +97,53 @@
     "@deepseek-ai/dsh-subprocess": ">=0.1.1-rc.2 <0.2.0",
     "@deepseek-ai/dsh-system-prompt": ">=0.1.1-rc.2 <0.2.0",
     "@deepseek-ai/dsh-tools": ">=0.1.1-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-user-questions": ">=0.1.1-rc.2 <0.2.0",
     "@deepseek-ai/schemastery": ">=3.18.1 <4"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/cordis": { "optional": true },
-    "@deepseek-ai/dsh-agent": { "optional": true },
-    "@deepseek-ai/dsh-fs": { "optional": true },
-    "@deepseek-ai/dsh-llm": { "optional": true },
-    "@deepseek-ai/dsh-sandbox": { "optional": true },
-    "@deepseek-ai/dsh-sandbox-policy": { "optional": true },
-    "@deepseek-ai/dsh-session": { "optional": true },
-    "@deepseek-ai/dsh-skill": { "optional": true },
-    "@deepseek-ai/dsh-subprocess": { "optional": true },
-    "@deepseek-ai/dsh-system-prompt": { "optional": true },
-    "@deepseek-ai/dsh-tools": { "optional": true },
-    "@deepseek-ai/schemastery": { "optional": true }
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-fs": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox-policy": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-session": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-skill": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-subprocess": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-system-prompt": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-user-questions": {
+      "optional": true
+    },
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@a2ui/react": "0.9.1",
+    "@a2ui/web_core": "0.9.2",
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/dsh-agent": "0.1.1-rc.2",
     "@deepseek-ai/dsh-agent-loop": "0.1.1-rc.2",
@@ -114,8 +157,13 @@
     "@deepseek-ai/dsh-subprocess-local": "0.1.1-rc.2",
     "@deepseek-ai/dsh-system-prompt": "0.1.1-rc.2",
     "@deepseek-ai/dsh-tools": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-user-questions": "0.1.1-rc.2",
     "@deepseek-ai/schemastery": "3.18.1",
     "@types/node": "^22.20.0",
+    "@types/react": "~18.3.1",
+    "esbuild": "^0.28.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   }

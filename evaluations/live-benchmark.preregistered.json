@@ -1,12 +1,12 @@
 {
   "version": 3,
-  "id": "reliability-governor-live-v4-2026-08-25",
+  "id": "reliability-governor-live-v5-2026-08-26",
   "status": "locked-before-provider-run",
-  "lockedAt": "2026-08-25T15:07:49Z",
-  "statement": "These hashes freeze the task manifest, claim-coverage-aware runner, analysis, and v0.5 default artifact path before any provider-backed v4 decision run. The three arms evaluate current-agent authorship, not auxiliary-model authorship. Any change requires a new pre-registration id and lock.",
+  "lockedAt": "2026-08-26T00:43:00Z",
+  "statement": "These hashes freeze the task manifest, claim-coverage-aware runner, analysis, v0.6 artifact path, and explicit contractReview.mode=off benchmark control before any provider-backed v5 decision run. The three unattended arms evaluate current-agent authorship without auxiliary-model authorship or user-review effects. Any change requires a new pre-registration id and lock.",
   "files": {
-    "evaluations/live-benchmark.json": "sha256:49fcae496f4b7e9b209ad77059540d252f168207c650be216e20431744aa5b2a",
-    "scripts/run-live-benchmark.mjs": "sha256:1b6230109a226905728669ec529b3c58b5993928d245763090b8db960093e3da",
+    "evaluations/live-benchmark.json": "sha256:3f6b44261cbf4e8847a3245565f132d0dda56770a2b58e0dbde14de211e34a43",
+    "scripts/run-live-benchmark.mjs": "sha256:8604fcf6cf1838e3d64b9f8f26e9b5d20fb0a207a5e26e630d722b940da9cd01",
     "scripts/live-benchmark-analysis.mjs": "sha256:e96ad8e0d577564b5160a5460a98a72277907615565d76c7c7a44f3ca99a38da"
   }
 }
