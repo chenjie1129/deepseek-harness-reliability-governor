@@ -9,6 +9,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-fs'
 import type { JsonValue, Session } from '@deepseek-ai/dsh-session'
+import * as SessionRuntime from '@deepseek-ai/dsh-session'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-skill'
@@ -60,12 +61,14 @@ import type {
   ResolvedContractReviewConfig,
 } from './contract-review.js'
 import type { ReliabilityContract, ReliabilityContractV3, ReliabilityContractV4 } from './types.js'
+import { registerReliabilitySessionEventTypes } from './session-compat.js'
 
 export * from './governor.js'
 export * from './coverage.js'
 export * from './types.js'
 export * from './a2ui.js'
 export * from './contract-review.js'
+export * from './session-compat.js'
 
 export const name = 'reliability-governor'
 export const inject = [
@@ -463,6 +466,7 @@ async function activateContract(
 
 /** Register the prompt policy, tools, durable events, and bounded stopping hook. */
 export function apply(ctx: Context, rawConfig: Config = {}): void {
+  registerReliabilitySessionEventTypes(SessionRuntime)
   const config = resolveConfig(rawConfig)
   const pendingReviews = new WeakSet<Agent>()
 

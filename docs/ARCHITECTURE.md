@@ -33,7 +33,7 @@ Only `active` causes turn-stopping enforcement. Every transition is reconstructe
 
 ## DeepSeek Harness integration rules
 
-The implementation follows the official clean `0.1.1-rc.2` source contracts:
+The implementation is tested against the `0.1.1-rc.2` package floor and the clean `0.1.2-alpha.1` source release:
 
 - one standalone npm bundle declares `dsh.bundle.patch` and inserts one Cordis plugin row;
 - ESM and strict TypeScript with explicit `.js` relative imports;
@@ -47,7 +47,8 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 - the coding workflow is contributed through `ctx.skills` as guidance and never treated as the enforcement authority;
 - custom `SessionEventMap` records are lossless-JSON values and are folded from the durable log rather than mirrored in process memory;
 - configuration defaults are declared with Schemastery and manually bounded at plugin load;
-- no internal Harness module path, mutable global, provider secret, or direct agent-loop patch is used.
+- no internal Harness module path, provider secret, or direct agent-loop patch is used;
+- on `0.1.2-alpha.1`, plugin load adds the six required `reliability/*` types to the public process-wide `KNOWN_SESSION_EVENT_TYPES` set because that release's persistence reader fails closed but exposes no downstream registration service. Older builds skip this bridge; an incompatible future catalog fails plugin load.
 
 ## Durable event vocabulary
 
@@ -59,6 +60,8 @@ The implementation follows the official clean `0.1.1-rc.2` source contracts:
 - `reliability/contract-review` records a UI-backed decision over an exact proposal receipt, the offered A2UI-with-native-fallback presentation, and a receipt. Optional feedback is represented only by its byte count and hash in this custom event.
 
 These are required events because they alter whether a session may truthfully settle. A runtime that cannot interpret them should refuse continuation rather than silently discard the contract.
+
+Harness `0.1.2-alpha.1` applies that refusal through a static persistence catalog. `registerReliabilitySessionEventTypes` updates the exported catalog before any tool or hook can write a Governor event and confirms every type was accepted. The process-lifetime registration is not removed during hot reload, because removing it could make an already-persisted session unreadable in the same process. This is a temporary compatibility seam, not an authority or evidence source.
 
 ## Evidence boundaries
 

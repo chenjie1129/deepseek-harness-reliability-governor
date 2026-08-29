@@ -71,6 +71,7 @@ for (const source of [
   'src/coverage.ts',
   'src/contract-author.ts',
   'src/contract-review.ts',
+  'src/session-compat.ts',
   'src/a2ui.ts',
   'src/receipts.ts',
   'src/code-verifier.ts',

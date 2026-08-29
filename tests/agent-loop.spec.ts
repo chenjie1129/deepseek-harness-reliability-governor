@@ -5,7 +5,6 @@ import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import type { FileSystem, FsTarget } from '@deepseek-ai/dsh-fs'
 import LlmRuntime, {
-  CallId,
   createUserMessage,
   LlmAdapter,
 } from '@deepseek-ai/dsh-llm'
@@ -32,7 +31,8 @@ function textResponse(text: string): StreamChunk[] {
 }
 
 function toolCallResponse(rawCallId: string, name: string, args: object): StreamChunk[] {
-  const id = CallId(rawCallId)
+  type StreamCallId = Extract<StreamChunk, { type: 'tool-call-delta' }>['id']
+  const id = rawCallId as StreamCallId
   const argumentsJson = JSON.stringify(args)
   return [
     { type: 'block-start', index: 0, blockType: 'tool-call' },

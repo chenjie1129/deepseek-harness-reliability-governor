@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.6.1
+
+- Restore persisted-session resume on DeepSeek Harness `0.1.2-alpha.1` by registering the Governor's six required event types in the release's fail-closed persistence catalog at plugin load.
+- Keep the compatibility path inert on older Harness builds that do not expose the catalog, while failing loudly if a future catalog is present but cannot accept the vocabulary.
+- Exercise the plugin against both the original `0.1.1-rc.2` package floor and the updated `0.1.2-alpha.1` source packages, including the renamed tool-call brand and scoped user-question answerer test seams.
+
 ## 0.6.0
 
 - Require a UI-backed Harness decision over the exact proposed evidence contract before activation by default.

@@ -56,7 +56,7 @@ npm run benchmark:live -- \
   --max-cases 2 \
   --trials 1 \
   --harness-root /absolute/path/to/deepseek-harness \
-  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.6.0.tgz \
+  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.6.1.tgz \
   --output /absolute/path/to/pilot-report.json
 ```
 

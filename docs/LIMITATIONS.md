@@ -58,3 +58,5 @@ The governor evaluates and steers but does not automatically invoke tools. Harne
 ## Custom event compatibility
 
 Governor events are required because dropping them would erase active enforcement state. Resume with the bundle installed. Export/migration across runtimes that do not understand the event vocabulary is not supported.
+
+Harness `0.1.2-alpha.1` introduced a fail-closed persistence catalog but did not yet provide an out-of-tree registration service. v0.6.1 therefore adds its six required types to the exported process-wide catalog during plugin load. This is a version-adaptive compatibility bridge: older builds have no catalog and need no registration; a future incompatible catalog makes the plugin fail at load rather than write a session it cannot resume. The bridge depends on the current exported catalog remaining mutable and should be replaced when Harness publishes a supported downstream registration API.

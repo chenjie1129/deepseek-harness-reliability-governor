@@ -1,6 +1,6 @@
 {
   "name": "@chenjie1129/dsh-reliability-governor-plugin",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "A2UI contract review, receipt-bound authorship, deterministic evidence gates, and bounded repair for DeepSeek Harness agents",
   "keywords": [
     "deepseek-harness",

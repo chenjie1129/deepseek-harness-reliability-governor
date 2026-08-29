@@ -19,6 +19,7 @@ It does **not** make an LLM deterministic. It makes a narrower promise: while a 
 | Keyless Harness AgentLoop fault matrix | 9 cases × 10 trials × 2 arms = 180 runs; mechanism gates pass; zero governed false completions and false certifications | The active contract and lifecycle enforce declared deterministic checks under scripted faults. |
 | Scripted auxiliary-author boundary tests | Strict parsing, no-tool calls, provenance, and receipt binding pass | The isolation mechanism works with a scripted stream; this is not evidence that a live model writes better contracts. |
 | A2UI review boundary tests | Official A2UI v0.9.1 processor accepts the fixed surface; approval, revision, rejection, tampering, fallback, and missing-provider paths fail closed | The exact proposal can require a UI-backed Harness decision before activation; this does not prove the proposal is correct. |
+| Harness compatibility matrix | Unit/composition tests and strict builds pass against the `0.1.1-rc.2` package floor and `0.1.2-alpha.1` source packages; the exact bundle installs and boots in a clean `0.1.2-alpha.1` profile | The plugin loads on both tested Harness versions and registers its required event vocabulary with the new fail-closed persistence catalog. |
 | Pre-registered provider-backed benchmark | 20 tasks × 5 trials × 3 arms planned; not run | No live-model quality, latency, cost, or net-utility claim yet. |
 
 The project is deliberately looking for evidence against its design. See [Beta feedback](FEEDBACK.md) for the independent-oracle protocol and privacy rules.
@@ -78,7 +79,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.6.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.6.1.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -178,7 +179,7 @@ The keyless benchmark proves the governor's enforcement mechanics using the real
 - Deterministic checks improve outcome reliability, not wording consistency.
 - A UI approval establishes that the exact proposal was accepted through the live Harness question channel. It does not authenticate a legal identity, prove that the user understood it, or certify the outcome.
 - v0.6 does not judge visual quality, semantic correctness beyond configured checks, omitted claims, remote state without authoritative evidence, or unknown side-effect outcomes. Auxiliary authorship and A2UI review do not remove these limits.
-- Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions.
+- Removing this plugin from a profile that owns sessions containing its required custom events can make those sessions non-continuable by a runtime that does not know the event vocabulary. Keep the bundle installed when resuming those sessions. Harness `0.1.2-alpha.1` has no downstream event-registration service, so v0.6.1 registers these types in its exported process-wide persistence catalog at load and fails loudly if that compatibility seam becomes unavailable.
 
 See [Contract review](docs/CONTRACT_REVIEW.md), [Contract authoring](docs/CONTRACT_AUTHORING.md), [Contract coverage](docs/CONTRACT_COVERAGE.md), [Beta feedback](FEEDBACK.md), [Architecture](docs/ARCHITECTURE.md), [Trusted code verification](docs/CODE_VERIFICATION.md), [Research](docs/RESEARCH.md), [Benchmark](docs/BENCHMARK.md), [Limitations](docs/LIMITATIONS.md), and [Security](SECURITY.md).
 

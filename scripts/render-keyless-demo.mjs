@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url'
 
 const root = new URL('../', import.meta.url)
 const reportUrl = new URL('evaluations/latest-keyless-report.json', root)
+const manifestUrl = new URL('package.json', root)
 const outputUrl = new URL('docs/assets/keyless-benchmark.svg', root)
 const check = process.argv.slice(2).includes('--check')
 
 const report = JSON.parse(await readFile(reportUrl, 'utf8'))
+const manifest = JSON.parse(await readFile(manifestUrl, 'utf8'))
 const baseline = report.summary.baseline
 const governed = report.summary.governed
 const runs = baseline.runs + governed.runs
@@ -32,7 +34,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" v
   <circle cx="1130" cy="80" r="220" fill="#2b74ff" opacity="0.08"/>
   <circle cx="110" cy="680" r="260" fill="#2dd4bf" opacity="0.06"/>
 
-  <text x="72" y="72" fill="#8ba3bd" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">UNOFFICIAL DEEPSEEK HARNESS PLUGIN · v0.6.0</text>
+  <text x="72" y="72" fill="#8ba3bd" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">UNOFFICIAL DEEPSEEK HARNESS PLUGIN · v${manifest.version}</text>
   <text x="72" y="124" fill="#f8fbff" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="42" font-weight="700">A model saying “done” is not evidence.</text>
   <text x="72" y="160" fill="#b9c9d9" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22">Reliability Governor turns completion into an observable, bounded decision.</text>
 

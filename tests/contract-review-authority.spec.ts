@@ -7,6 +7,27 @@ import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import { createReviewProposal, requestContractReview } from '../src/contract-review.js'
 import { REVIEW_APPROVE_LABEL } from '../src/a2ui.js'
 
+type TestQuestionRequest = { questions: Array<{ id: string }> }
+type TestAnswer = { answers: Array<{ id: string; selected?: string[] }> }
+
+function registerTestAnswerer(
+  ctx: Context,
+  ask: (request: TestQuestionRequest) => Promise<TestAnswer>,
+): void {
+  const service = ctx.userQuestions as unknown as {
+    registerProvider?: (provider: { ask: typeof ask }) => void
+  }
+  if (service.registerProvider !== undefined) {
+    service.registerProvider({ ask })
+    return
+  }
+  const on = ctx.on as unknown as (
+    name: string,
+    listener: (request: TestQuestionRequest) => Promise<TestAnswer>,
+  ) => void
+  on('user-questions/request', ask)
+}
+
 function session(id: string) {
   const sessionId = SessionId(id)
   return Session.create(sessionId, undefined, {
@@ -63,7 +84,7 @@ describe('Harness user-question authority boundary', () => {
     const ask = vi.fn(async (request: { questions: Array<{ id: string }> }) => ({
       answers: [{ id: request.questions[0].id, selected: [REVIEW_APPROVE_LABEL] }],
     }))
-    ctx.userQuestions.registerProvider({ ask })
+    registerTestAnswerer(ctx, ask)
     const reviewed = proposal()
 
     const result = await requestContractReview(ctx, root, reviewed, new AbortController().signal)
@@ -86,7 +107,7 @@ describe('Harness user-question authority boundary', () => {
     ctx.agents.enter(root, undefined)
     ctx.agents.enter(child, root)
     const ask = vi.fn(async () => ({ answers: [] }))
-    ctx.userQuestions.registerProvider({ ask })
+    registerTestAnswerer(ctx, ask)
 
     const result = await requestContractReview(ctx, child, proposal(), new AbortController().signal)
 
@@ -103,7 +124,7 @@ describe('Harness user-question authority boundary', () => {
     const root = agent('cancelled-root')
     ctx.agents.enter(root, undefined)
     const ask = vi.fn(async () => ({ answers: [] }))
-    ctx.userQuestions.registerProvider({ ask })
+    registerTestAnswerer(ctx, ask)
     const controller = new AbortController()
     controller.abort()
 

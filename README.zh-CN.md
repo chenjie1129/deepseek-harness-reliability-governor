@@ -63,7 +63,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.6.0.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.6.1.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -98,7 +98,7 @@ contractReview:
 - 本插件改善结果可靠性，不保证每次回答措辞完全一致。
 - UI 批准只表示 live Harness 问答通道接受了这一份精确提案；它不认证法律身份、不证明用户已经理解，也不代表任务已经通过。
 - v0.6 不判断视觉质量、超出配置检查范围的开放式语义正确性、被遗漏的 Claim、缺少权威证据的远程状态，也不会猜测未知副作用是否成功；辅助作者和 A2UI 审查都不能突破这些边界。
-- 含本插件自定义必要事件的会话，在恢复时应继续安装本组合包。
+- 含本插件自定义必要事件的会话，在恢复时应继续安装本组合包。Harness `0.1.2-alpha.1` 尚未提供下游事件注册服务，因此 v0.6.1 会在加载时把这些事件注册进其导出的进程级持久化目录；若未来该兼容入口不可用，插件会显式报错而不是静默产生无法恢复的会话。
 
 开发验证：
 
