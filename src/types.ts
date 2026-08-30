@@ -77,6 +77,47 @@ export interface ReliabilityCoverageAssessment {
 
 export type ReliabilityContractAuthoringMode = 'current-agent' | 'auxiliary-model' | 'manual'
 
+/** Bounded, explicit interpretation of the user's requested outcome. */
+export interface ReliabilityIntent {
+  version: 1
+  objective: string
+  constraints: string[]
+  assumptions: string[]
+  nonGoals: string[]
+  ambiguities: string[]
+  authorship: {
+    version: 1
+    mode: 'current-agent' | 'manual'
+    assurance: 'caller-declared'
+  }
+}
+
+export type ReliabilityReviewDecision =
+  | 'approved'
+  | 'revision-requested'
+  | 'rejected'
+  | 'cancelled'
+  | 'unavailable'
+
+/** Privacy-minimized record of one UI decision over an interpreted intent. */
+export interface ReliabilityIntentReview {
+  version: 1
+  proposalReceipt: string
+  decision: ReliabilityReviewDecision
+  channel: 'harness-user-questions'
+  presentation: 'a2ui-v0.9.1-with-native-fallback'
+  feedback?: { bytes: number; receipt: string }
+  receipt: string
+}
+
+/** Approved intent content and receipts embedded into a reviewed contract. */
+export interface ReliabilityApprovedIntent extends ReliabilityIntent {
+  proposalReceipt: string
+  reviewReceipt: string
+  channel: ReliabilityIntentReview['channel']
+  presentation: ReliabilityIntentReview['presentation']
+}
+
 /** How a claim set entered the governor. This is provenance, not proof that the claims are complete. */
 export interface ReliabilityAuxiliaryDraftAuthorship {
   version: 1
@@ -117,15 +158,10 @@ export interface ReliabilityContractDraft {
   receipt: string
 }
 
-export type ReliabilityContractReviewDecision =
-  | 'approved'
-  | 'revision-requested'
-  | 'rejected'
-  | 'cancelled'
-  | 'unavailable'
+export type ReliabilityContractReviewDecision = ReliabilityReviewDecision
 
 /** Privacy-minimized record of one UI-backed decision over an exact proposal receipt. */
-export interface ReliabilityContractReview {
+export interface ReliabilityContractReviewV1 {
   version: 1
   proposalReceipt: string
   contractKind: 'general' | 'code'
@@ -136,14 +172,43 @@ export interface ReliabilityContractReview {
   receipt: string
 }
 
+/** Evidence-contract decision explicitly bound to an approved intent. */
+export interface ReliabilityContractReviewV2 {
+  version: 2
+  proposalReceipt: string
+  intentProposalReceipt: string
+  contractKind: 'general' | 'code'
+  decision: ReliabilityContractReviewDecision
+  channel: 'harness-user-questions'
+  presentation: 'a2ui-v0.9.1-with-native-fallback'
+  feedback?: { bytes: number; receipt: string }
+  receipt: string
+}
+
+export type ReliabilityContractReview = ReliabilityContractReviewV1 | ReliabilityContractReviewV2
+
 /** Approved review reference embedded into the activated contract. */
-export interface ReliabilityContractReviewReference {
+export interface ReliabilityContractReviewReferenceV1 {
   version: 1
   proposalReceipt: string
   reviewReceipt: string
   channel: ReliabilityContractReview['channel']
   presentation: ReliabilityContractReview['presentation']
 }
+
+/** Approved evidence review reference bound to the exact approved intent. */
+export interface ReliabilityContractReviewReferenceV2 {
+  version: 2
+  proposalReceipt: string
+  intentProposalReceipt: string
+  reviewReceipt: string
+  channel: ReliabilityContractReview['channel']
+  presentation: ReliabilityContractReview['presentation']
+}
+
+export type ReliabilityContractReviewReference =
+  | ReliabilityContractReviewReferenceV1
+  | ReliabilityContractReviewReferenceV2
 
 /** Privacy-minimized result of one deployment-controlled code verifier run. */
 export interface CodeVerificationResult {
@@ -197,7 +262,17 @@ export interface ReliabilityContractV4 extends ReliabilityContractBase {
   claims: ReliabilityClaim[]
   coverageAssessment: ReliabilityCoverageAssessment
   authorship: ReliabilityContractAuthorship
-  review: ReliabilityContractReviewReference
+  review: ReliabilityContractReviewReferenceV1
+}
+
+/** Two-stage reviewed contract bound first to intent and then to evidence. */
+export interface ReliabilityContractV5 extends ReliabilityContractBase {
+  version: 5
+  claims: ReliabilityClaim[]
+  coverageAssessment: ReliabilityCoverageAssessment
+  authorship: ReliabilityContractAuthorship
+  intent: ReliabilityApprovedIntent
+  review: ReliabilityContractReviewReferenceV2
 }
 
 export type ReliabilityContract =
@@ -205,6 +280,7 @@ export type ReliabilityContract =
   | ReliabilityContractV2
   | ReliabilityContractV3
   | ReliabilityContractV4
+  | ReliabilityContractV5
 
 /** One check's privacy-minimized deterministic verdict. */
 export interface ReliabilityCheckResult {
@@ -247,11 +323,14 @@ declare module '@deepseek-ai/dsh-session/types' {
     'reliability/contract-draft': ReliabilityContractDraft
     /** Records one UI-backed decision bound to the exact proposed contract receipt. */
     'reliability/contract-review': ReliabilityContractReview
+    /** Records one UI-backed decision over the model's explicit intent interpretation. */
+    'reliability/intent-review': ReliabilityIntentReview
   }
 }
 
 export interface FoldedReliabilityState {
   latestDraft?: ReliabilityContractDraft
+  latestIntentReview?: ReliabilityIntentReview
   latestReview?: ReliabilityContractReview
   contract?: ReliabilityContract
   attempts: ReliabilityAttempt[]
@@ -261,6 +340,7 @@ export interface FoldedReliabilityState {
 /** Reconstruct the latest governor state from the durable session log. */
 export function foldReliability(events: readonly SessionEvent[]): FoldedReliabilityState {
   let latestDraft: ReliabilityContractDraft | undefined
+  let latestIntentReview: ReliabilityIntentReview | undefined
   let latestReview: ReliabilityContractReview | undefined
   let contract: ReliabilityContract | undefined
   let attempts: ReliabilityAttempt[] = []
@@ -269,6 +349,8 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
   for (const event of events) {
     if (event.type === 'reliability/contract-draft') {
       latestDraft = event.data
+    } else if (event.type === 'reliability/intent-review') {
+      latestIntentReview = event.data
     } else if (event.type === 'reliability/contract-review') {
       latestReview = event.data
     } else if (event.type === 'reliability/contract') {
@@ -284,6 +366,7 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
 
   return {
     ...(latestDraft === undefined ? {} : { latestDraft }),
+    ...(latestIntentReview === undefined ? {} : { latestIntentReview }),
     ...(latestReview === undefined ? {} : { latestReview }),
     ...(contract === undefined ? {} : { contract }),
     attempts,

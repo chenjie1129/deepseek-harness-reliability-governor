@@ -7,7 +7,7 @@ This project separates two claims:
 
 The checked-in keyless benchmark tests the first claim. Only the pre-registered provider-backed benchmark can test the second. Neither makes an LLM deterministic.
 
-v0.6's scripted auxiliary-author and A2UI review tests prove isolation, protocol compatibility, strict parsing, provenance, receipt enforcement, and fail-closed decisions only. They do not measure whether users understand or improve contracts. The current three-arm live protocol compares task-agent-authored contracts with independently authored reference contracts; it does not isolate auxiliary authorship or human review. A future decision-quality revision must pre-register those arms and separately report omitted claims, false certification, false exhaustion, false abstention, latency, token cost, review time, and revision rate before the project claims either feature is net-positive.
+v0.7's scripted auxiliary-author and two-stage A2UI review tests prove isolation, protocol compatibility, strict parsing, provenance, review ordering, receipt enforcement, and fail-closed decisions only. They do not measure whether users understand or improve intent or evidence proposals. The current three-arm live protocol was frozen before two-stage review and compares task-agent-authored contracts with independently authored reference contracts while explicitly disabling review; it does not isolate auxiliary authorship or human review. A future decision-quality revision must pre-register separate intent-review and evidence-review arms and report omitted claims, intent corrections, evidence revisions, false certification, false exhaustion, false abstention, latency, token cost, review time, and abandonment before the project claims either review is net-positive.
 
 ## Current keyless evidence
 
@@ -56,7 +56,7 @@ npm run benchmark:live -- \
   --max-cases 2 \
   --trials 1 \
   --harness-root /absolute/path/to/deepseek-harness \
-  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.6.1.tgz \
+  --plugin /absolute/path/to/chenjie1129-dsh-reliability-governor-plugin-0.7.0.tgz \
   --output /absolute/path/to/pilot-report.json
 ```
 

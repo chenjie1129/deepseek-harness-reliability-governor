@@ -11,6 +11,7 @@ export const RELIABILITY_SESSION_EVENT_TYPES = [
   'reliability/code-verification',
   'reliability/contract-draft',
   'reliability/contract-review',
+  'reliability/intent-review',
 ] as const
 
 interface MutableEventTypeRegistry {

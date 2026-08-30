@@ -13,7 +13,7 @@ import { receiptFor } from './receipts.js'
 import type {
   ReliabilityContractReview,
   ReliabilityContractReviewDecision,
-  ReliabilityContractReviewReference,
+  ReliabilityContractReviewReferenceV2,
 } from './types.js'
 
 export interface ContractReviewConfig {
@@ -48,9 +48,9 @@ export function createReviewProposal(
 ): ReliabilityReviewProposal {
   const content = structuredClone(input)
   return {
-    version: 1,
+    version: 2,
     ...content,
-    proposalReceipt: receiptFor('reliability-contract-proposal-v1', content),
+    proposalReceipt: receiptFor('reliability-contract-proposal-v2', content),
   }
 }
 
@@ -64,6 +64,7 @@ function fallbackMarkdown(proposal: ReliabilityReviewProposal): string {
     maxAttempts: proposal.maxAttempts,
     authorship: proposal.authorship,
     coverageAssessment: proposal.coverageAssessment,
+    approvedIntent: proposal.intent,
     proposalReceipt: proposal.proposalReceipt,
   }, null, 2).split('\n').map(line => `    ${line}`).join('\n')
   return `### Review the evidence contract
@@ -107,8 +108,9 @@ function appendReview(
 ): ReliabilityContractReview {
   const recordedFeedback = feedbackRecord(feedback)
   const content = {
-    version: 1 as const,
+    version: 2 as const,
     proposalReceipt: proposal.proposalReceipt,
+    intentProposalReceipt: proposal.intent.proposalReceipt,
     contractKind: proposal.contractKind,
     decision,
     channel: 'harness-user-questions' as const,
@@ -117,7 +119,7 @@ function appendReview(
   }
   const review: ReliabilityContractReview = {
     ...content,
-    receipt: receiptFor('reliability-contract-review-v1', content),
+    receipt: receiptFor('reliability-contract-review-v2', content),
   }
   agent.session.append('reliability/contract-review', review)
   return review
@@ -130,7 +132,7 @@ function unavailableDecision(cause: unknown): 'cancelled' | 'unavailable' {
 
 export interface ContractReviewResult {
   review: ReliabilityContractReview
-  reference?: ReliabilityContractReviewReference
+  reference?: ReliabilityContractReviewReferenceV2
   feedback?: string
 }
 
@@ -174,8 +176,9 @@ export async function requestContractReview(
   return {
     review,
     reference: {
-      version: 1,
+      version: 2,
       proposalReceipt: proposal.proposalReceipt,
+      intentProposalReceipt: proposal.intent.proposalReceipt,
       reviewReceipt: review.receipt,
       channel: review.channel,
       presentation: review.presentation,

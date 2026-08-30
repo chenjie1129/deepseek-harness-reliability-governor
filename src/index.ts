@@ -60,14 +60,21 @@ import type {
   ContractReviewConfig,
   ResolvedContractReviewConfig,
 } from './contract-review.js'
-import type { ReliabilityContract, ReliabilityContractV3, ReliabilityContractV4 } from './types.js'
+import type { ReliabilityContract, ReliabilityContractV3, ReliabilityContractV5 } from './types.js'
 import { registerReliabilitySessionEventTypes } from './session-compat.js'
+import {
+  createIntent,
+  createIntentReviewProposal,
+  requestIntentReview,
+} from './intent-review.js'
+import type { ToolIntentInput } from './intent-review.js'
 
 export * from './governor.js'
 export * from './coverage.js'
 export * from './types.js'
 export * from './a2ui.js'
 export * from './contract-review.js'
+export * from './intent-review.js'
 export * from './session-compat.js'
 
 export const name = 'reliability-governor'
@@ -261,6 +268,29 @@ const CLAIM_SCHEMA = {
   },
 } as const
 
+const INTENT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    constraints: {
+      type: 'array', items: { type: 'string' },
+      description: 'User constraints that the implementation and evidence contract must preserve.',
+    },
+    assumptions: {
+      type: 'array', items: { type: 'string' },
+      description: 'Material assumptions made while interpreting the request.',
+    },
+    non_goals: {
+      type: 'array', items: { type: 'string' },
+      description: 'Explicit outcomes or changes outside this task.',
+    },
+    ambiguities: {
+      type: 'array', items: { type: 'string' },
+      description: 'Remaining ambiguities the user should resolve or consciously accept.',
+    },
+  },
+} as const
+
 interface ToolClaim {
   id: string
   statement: string
@@ -293,7 +323,7 @@ function promptFor(
       ? `Contract authorship mode is manual. Do not invent a claim set. Use only a contract supplied by the user or a reviewed reference source. The runtime records this as caller-declared provenance, not authenticated human approval. If no such contract is available, explain that manual input is required. Deployment-required code profiles may still be opened through reliability_begin_code.`
       : `Contract authorship mode is current-agent. Draft the claims and checks yourself, then preflight them with reliability_assess before reliability_begin.`
   const review = reviewMode === 'required'
-    ? 'Contract review mode is required. reliability_begin and reliability_begin_code pause at activation and show the exact proposal to the live root user. Only an approved, receipt-bound decision opens the contract. A revision, rejection, cancellation, unavailable UI, or malformed response leaves it inactive. Never claim that user approval certifies the later outcome.'
+    ? 'Two-stage review is required. After bounded read-only discovery and before mutation, reliability_begin and reliability_begin_code first show the interpreted objective, constraints, assumptions, non-goals, and ambiguities to the live root user. Only exact intent approval proceeds to a separate evidence-contract review. Only approval of both receipt-bound proposals opens a version 5 contract. Include the intent object on every begin call. Revision, rejection, cancellation, unavailable UI, or malformed response at either stage leaves the contract inactive. Never claim that either approval certifies the later outcome.'
     : 'Contract review mode is off for this unattended deployment. No human approval is claimed or recorded.'
   return `Reliability Governor is available for evidence-gated completion.
 
@@ -314,7 +344,7 @@ While a contract is active:
 - Never repeat a non-idempotent external action merely because its outcome is unknown; inspect state or abstain instead.
 - If coverage assessment says a claim needs credentials, human judgment, or an unsupported oracle, do not activate or claim completion; explain the limitation. If proof becomes unavailable after a contract is active, call reliability_abstain.
 
-Coverage is structural, not semantic: it cannot detect a success claim omitted from the contract or decide whether a claim faithfully represents the user's intent. Prefer independently reviewed claim sets for high-impact work. Treat a review-required assessment as a reason to revise the contract or decline certification, never as permission to proceed without evidence.
+Coverage is structural, not semantic: it cannot detect a success claim omitted from the contract or decide whether a claim faithfully represents even an approved intent. The two review stages expose that mapping to the user; they do not make it automatically correct. Prefer independently authored references for high-impact work. Treat a review-required assessment as a reason to revise the contract or decline certification, never as permission to proceed without evidence.
 
 Use no contract for casual conversation or work with no meaningful observable completion condition.`
 }
@@ -367,7 +397,7 @@ function bindAuxiliaryDraft(
 ): { draft: ReliabilityContractDraft; authorship: ReliabilityContractAuthorship } {
   const boundDraft = requireBoundDraft(draft, receipt, objective, claims, checks)
   if (session.events.some(event => event.type === 'reliability/contract'
-    && (event.data.version === 3 || event.data.version === 4)
+    && (event.data.version === 3 || event.data.version === 4 || event.data.version === 5)
     && event.data.authorship.mode === 'auxiliary-model'
     && event.data.authorship.draftReceipt === boundDraft.receipt)) {
     throw new Error('draft_receipt has already been used to open a contract; request a fresh draft')
@@ -415,10 +445,18 @@ async function activateContract(
   agent: Agent,
   contractKind: 'general' | 'code',
   candidate: ReliabilityContract,
+  intentInput: ToolIntentInput | undefined,
+  authoringMode: ResolvedContractAuthoringConfig['mode'],
   reviewConfig: ResolvedContractReviewConfig,
   pendingReviews: WeakSet<Agent>,
   signal: AbortSignal,
-): Promise<{ status: string; contract?: ReliabilityContract; review?: unknown; feedback?: string }> {
+): Promise<{
+  status: string
+  contract?: ReliabilityContract
+  intentReview?: unknown
+  review?: unknown
+  feedback?: string
+}> {
   if (reviewConfig.mode === 'off') {
     agent.session.append('reliability/contract', candidate)
     return { status: 'active', contract: candidate }
@@ -427,18 +465,38 @@ async function activateContract(
   if (pendingReviews.has(agent)) {
     throw new Error('a contract review is already pending for this live agent')
   }
-  const proposal = createReviewProposal({
-    contractId: authored.contractId,
-    contractKind,
-    objective: authored.objective,
-    claims: authored.claims,
-    checks: authored.checks,
-    maxAttempts: authored.maxAttempts,
-    authorship: authored.authorship,
-    coverageAssessment: authored.coverageAssessment,
-  })
   pendingReviews.add(agent)
   try {
+    const intent = createIntent(authored.objective, intentInput, authoringMode)
+    const intentResult = await requestIntentReview(
+      ctx,
+      agent,
+      createIntentReviewProposal(intent),
+      signal,
+    )
+    if (intentResult.approvedIntent === undefined) {
+      const status = intentResult.review.decision === 'cancelled'
+        ? 'intent-review-cancelled'
+        : intentResult.review.decision === 'unavailable'
+          ? 'intent-review-unavailable'
+          : `intent-${intentResult.review.decision}`
+      return {
+        status,
+        intentReview: intentResult.review,
+        ...(intentResult.feedback === undefined ? {} : { feedback: intentResult.feedback }),
+      }
+    }
+    const proposal = createReviewProposal({
+      contractId: authored.contractId,
+      contractKind,
+      objective: authored.objective,
+      claims: authored.claims,
+      checks: authored.checks,
+      maxAttempts: authored.maxAttempts,
+      authorship: authored.authorship,
+      coverageAssessment: authored.coverageAssessment,
+      intent: intentResult.approvedIntent,
+    })
     const result = await requestContractReview(ctx, agent, proposal, signal)
     if (result.reference === undefined) {
       const status = result.review.decision === 'cancelled'
@@ -448,17 +506,19 @@ async function activateContract(
           : result.review.decision
       return {
         status,
+        intentReview: intentResult.review,
         review: result.review,
         ...(result.feedback === undefined ? {} : { feedback: result.feedback }),
       }
     }
-    const contract: ReliabilityContractV4 = structuredClone({
+    const contract: ReliabilityContractV5 = structuredClone({
       ...authored,
-      version: 4 as const,
+      version: 5 as const,
+      intent: intentResult.approvedIntent,
       review: result.reference,
     })
     agent.session.append('reliability/contract', contract)
-    return { status: 'active', contract, review: result.review }
+    return { status: 'active', contract, intentReview: intentResult.review, review: result.review }
   } finally {
     pendingReviews.delete(agent)
   }
@@ -552,6 +612,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
     description: 'Open one durable, evidence-gated completion contract for the current session. Use before claiming a substantive verifiable task is complete. Only deterministic checks are accepted; paths are workspace-relative.',
     parameters: {
       objective: { type: 'string', required: true, description: 'Concise outcome this contract must prove.' },
+      intent: { ...INTENT_SCHEMA, description: 'Required in interactive review mode. Makes the interpreted constraints, assumptions, non-goals, and ambiguities explicit before evidence review.' },
       claims: { type: 'array', required: true, items: CLAIM_SCHEMA, description: 'Every declared success claim mapped to supporting check ids.' },
       checks: { type: 'array', required: true, items: CHECK_SCHEMA, description: 'Deterministic assertions that collectively prove the outcome.' },
       max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
@@ -592,7 +653,8 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
       return asJson(await activateContract(
-        ctx, agent, 'general', contract, config.contractReview, pendingReviews, exec.signal,
+        ctx, agent, 'general', contract, args.intent as ToolIntentInput | undefined,
+        config.contractAuthoring.mode, config.contractReview, pendingReviews, exec.signal,
       ))
     },
   }))
@@ -602,6 +664,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
     description: 'Open a code completion contract that automatically includes every deployment-required trusted code-verification profile. The model may add checks but cannot remove required profiles.',
     parameters: {
       objective: { type: 'string', required: true, description: 'Concrete code outcome to prove.' },
+      intent: { ...INTENT_SCHEMA, description: 'Required in interactive review mode. Makes the interpreted constraints, assumptions, non-goals, and ambiguities explicit before evidence review.' },
       additional_checks: { type: 'array', items: CHECK_SCHEMA, description: 'Optional deterministic artifact or policy checks in addition to all required code profiles.' },
       additional_claims: { type: 'array', items: CLAIM_SCHEMA, description: 'Optional claims for additional checks. Required profile checks are mapped automatically.' },
       claims: { type: 'array', items: CLAIM_SCHEMA, description: 'Exact full claim set returned by reliability_draft; used only in auxiliary-model mode.' },
@@ -684,7 +747,8 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
         ...(args.max_attempts === undefined ? {} : { maxAttempts: args.max_attempts }),
       }, session.seq, config)
       const activated = await activateContract(
-        ctx, agent, 'code', contract, config.contractReview, pendingReviews, exec.signal,
+        ctx, agent, 'code', contract, args.intent as ToolIntentInput | undefined,
+        config.contractAuthoring.mode, config.contractReview, pendingReviews, exec.signal,
       )
       return asJson({
         ...activated,

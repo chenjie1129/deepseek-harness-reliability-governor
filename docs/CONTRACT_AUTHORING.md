@@ -1,6 +1,6 @@
 # Contract authoring
 
-Contract authoring, user approval, and outcome judgment are three different jobs. An LLM can help identify what should be checked; it is not trusted to decide whether its own work passed. Reliability Governor v0.6 makes authorship configurable, requires user review by default, and leaves certification in deterministic checks and deployment-controlled verifiers.
+Intent interpretation, evidence-contract authoring, user approval, and outcome judgment are four different jobs. An LLM can help express what the user meant and identify what should be checked; it is not trusted to approve either proposal or decide whether its own work passed. Reliability Governor v0.7 separates intent review from evidence review and leaves certification in deterministic checks and deployment-controlled verifiers.
 
 ## The three modes
 
@@ -10,7 +10,7 @@ Contract authoring, user approval, and outcome judgment are three different jobs
 | `auxiliary-model` | One bounded call per draft | A separately routed model proposes the initial contract | Receipt-bound to that exact draft, but not an independent oracle |
 | `manual` | No | User or reviewed reference contract | Caller-declared authorship; later UI review is recorded separately |
 
-The authoring default is deliberately zero-configuration and makes no hidden provider request. Independently, `contractReview.mode: required` pauses activation for a Harness UI decision. It does not make the author a separate agent or provider.
+The authoring default is deliberately zero-configuration and makes no hidden provider request. The current task model drafts both the explicit intent fields and the claims/checks. Independently, `contractReview.mode: required` pauses activation for two Harness UI decisions. It does not make the author a separate agent or provider.
 
 ## Is the auxiliary author an agent?
 
@@ -22,8 +22,8 @@ flowchart LR
   B --> C[One text-only model call]
   C --> D[Strict JSON claims and checks]
   D --> E[Deterministic coverage preflight]
-  E --> F[Receipt-bound contract]
-  F --> R[User reviews exact proposal receipt]
+  E --> F[Receipt-bound evidence proposal]
+  F --> R[After intent approval, user reviews evidence]
   R --> G[Task and repair loop]
   G --> H[Deterministic or external oracle]
   H --> I[certified / exhausted / abstained]
@@ -65,7 +65,7 @@ contractAuthoring:
 ## Auxiliary workflow
 
 1. The task agent performs only the read-only exploration needed to identify paths, constraints, and available evidence.
-2. It calls `reliability_draft` with `contract_kind: general` or `contract_kind: code`, the objective, and a concise context summary. For `code`, the runtime deterministically injects every deployment-required trusted verifier profile before calculating the draft receipt.
+2. It calls `reliability_draft` with `contract_kind: general` or `contract_kind: code`, the objective, and a concise context summary. This auxiliary call drafts evidence only; the current task model still expresses the intent proposal. For `code`, the runtime deterministically injects every deployment-required trusted verifier profile before calculating the draft receipt.
 3. The plugin makes one bounded text-only call and accepts only the documented strict JSON schema.
 4. The normal deterministic coverage assessment runs. Human-only, unsupported, or under-supported claims remain `review-required`.
 5. A successful draft is written as `reliability/contract-draft` with provider/model/prompt-version provenance, usage when available, and a content receipt.
@@ -75,7 +75,7 @@ The custom draft event does not contain raw auxiliary reasoning and does not dup
 
 ## What receipt binding proves—and does not prove
 
-Draft receipt binding proves that the proposed contract matches the successful auxiliary draft recorded by this plugin. User approval then produces a version 4 contract that references both the exact proposal and review receipts; draft reuse is rejected. This prevents the task agent from silently changing or replaying the draft between authoring and activation.
+Draft receipt binding proves that the proposed evidence contract matches the successful auxiliary draft recorded by this plugin. Intent approval happens first. Evidence approval then produces a version 5 contract containing the approved intent and references to both reviews; draft reuse is rejected. This prevents the task agent from silently changing or replaying the draft between authoring and activation.
 
 It does not prove that:
 
@@ -86,7 +86,18 @@ It does not prove that:
 - the provider signed the output; or
 - the outcome passed.
 
-Only later deterministic or external evidence decides the outcome. The default Harness UI review is stronger than caller-declared tool arguments because it is collected through the exact live-root question channel, but it is not a signed identity or comprehension proof. For high-impact work, compare the draft with an independently authored reference and use protected deployment policy where legal identity or dual control is required.
+Only later deterministic or external evidence decides the outcome. The two default Harness UI reviews are stronger than caller-declared tool arguments because they are collected through the exact live-root question channel, but they are not signed identity or comprehension proof. For high-impact work, compare the intent and evidence draft with independently authored references and use protected deployment policy where legal identity or dual control is required.
+
+## Which stages use models?
+
+| Stage | Default | Optional alternative | Holds authority? |
+| --- | --- | --- | --- |
+| Intent proposal | Current task model | Manual user/reference input | No; user review decides acceptance. |
+| Evidence proposal | Current task model | One isolated auxiliary-model call or manual input | No; user review decides activation. |
+| Structural validation | Deterministic Governor code | None | Yes, for schema and coverage admission only. |
+| Outcome verification | Deterministic checks and configured verifier profiles | Explicit lower-confidence providers may be added later | Yes, within the declared evidence boundary. |
+
+A second model is not required. It can diversify proposal authorship but remains a correlated, stochastic critic rather than an independent oracle.
 
 ## Evaluation status
 

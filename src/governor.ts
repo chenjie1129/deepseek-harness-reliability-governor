@@ -8,7 +8,7 @@ import type {
   ReliabilityCheckResult,
   ReliabilityContract,
   ReliabilityContractAuthorship,
-  ReliabilityContractReviewReference,
+  ReliabilityContractReviewReferenceV1,
   ReliabilityTerminal,
 } from './types.js'
 import type { ReliabilityClaim } from './types.js'
@@ -153,7 +153,7 @@ export function createContract(
     checks: ReliabilityCheck[]
     claims?: ReliabilityClaim[]
     authorship?: ReliabilityContractAuthorship
-    review?: ReliabilityContractReviewReference
+    review?: ReliabilityContractReviewReferenceV1
     maxAttempts?: number
   },
   startedAtSeq: number,

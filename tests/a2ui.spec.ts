@@ -8,14 +8,24 @@ import {
   REVIEW_APPROVE_LABEL,
   REVIEW_REJECT_LABEL,
   REVIEW_REVISE_LABEL,
+  INTENT_APPROVE_LABEL,
+  INTENT_REJECT_LABEL,
+  INTENT_REVISE_LABEL,
+  createA2uiIntentReviewEnvelope,
   createA2uiReviewEnvelope,
   decodeA2uiReviewDetail,
   encodeA2uiReviewDetail,
 } from '../src/a2ui.js'
 import { createReviewProposal } from '../src/contract-review.js'
+import { createIntent, createIntentReviewProposal } from '../src/intent-review.js'
 import { renderReviewMarkdown, selectA2uiReview } from '../src/client/index.js'
 
 function proposal(overrides: { objective?: string; maxAttempts?: number } = {}) {
+  const intentProposal = createIntentReviewProposal(createIntent(
+    overrides.objective ?? 'write a verified result',
+    { constraints: ['Preserve unrelated files.'], assumptions: [], non_goals: [], ambiguities: [] },
+    'current-agent',
+  ))
   return createReviewProposal({
     contractId: 'contract-test-1',
     contractKind: 'general',
@@ -59,6 +69,13 @@ function proposal(overrides: { objective?: string; maxAttempts?: number } = {}) 
       }],
       receipt: 'sha256:coverage',
     },
+    intent: {
+      ...intentProposal.intent,
+      proposalReceipt: intentProposal.proposalReceipt,
+      reviewReceipt: 'sha256:intent-review',
+      channel: 'harness-user-questions',
+      presentation: 'a2ui-v0.9.1-with-native-fallback',
+    },
   })
 }
 
@@ -78,6 +95,11 @@ describe('fixed A2UI contract review surface', () => {
     expect(JSON.stringify(envelope)).toContain(REVIEW_APPROVE_LABEL)
     expect(JSON.stringify(envelope)).toContain(REVIEW_REVISE_LABEL)
     expect(JSON.stringify(envelope)).toContain(REVIEW_REJECT_LABEL)
+    expect(JSON.stringify(envelope)).toContain('Preserve unrelated files.')
+    expect(JSON.stringify(envelope)).toContain('file_equals')
+    expect(JSON.stringify(envelope)).toContain('result.txt')
+    expect(JSON.stringify(envelope)).toContain('READY\\\\n')
+    expect(JSON.stringify(envelope)).toContain('sha256:coverage')
 
     const processor = new MessageProcessor([basicCatalog], () => undefined)
     expect(() => processor.processMessages(envelope.messages as never)).not.toThrow()
@@ -87,6 +109,26 @@ describe('fixed A2UI contract review surface', () => {
   it('changes the proposal receipt when a reviewed control changes', () => {
     expect(proposal({ maxAttempts: 1 }).proposalReceipt).not.toBe(proposal({ maxAttempts: 2 }).proposalReceipt)
     expect(proposal({ objective: 'first' }).proposalReceipt).not.toBe(proposal({ objective: 'second' }).proposalReceipt)
+  })
+
+  it('round-trips a separate receipt-bound intent surface before evidence review', () => {
+    const reviewed = createIntentReviewProposal(createIntent('preserve user intent', {
+      constraints: ['Do not delete recent records.'],
+      assumptions: ['Dates use UTC.'],
+      non_goals: ['Do not change retention configuration.'],
+      ambiguities: [],
+    }, 'current-agent'))
+    const envelope = createA2uiIntentReviewEnvelope(reviewed)
+    const detail = encodeA2uiReviewDetail('Readable intent fallback', envelope)
+    const decoded = decodeA2uiReviewDetail(detail)
+
+    expect(decoded).toEqual(envelope)
+    expect(JSON.stringify(envelope)).toContain(INTENT_APPROVE_LABEL)
+    expect(JSON.stringify(envelope)).toContain(INTENT_REVISE_LABEL)
+    expect(JSON.stringify(envelope)).toContain(INTENT_REJECT_LABEL)
+    const processor = new MessageProcessor([basicCatalog], () => undefined)
+    expect(() => processor.processMessages(envelope.messages as never)).not.toThrow()
+    expect(processor.model.surfacesMap.has(envelope.surfaceId)).toBe(true)
   })
 
   it('escapes proposal text at rendering and never emits executable A2UI components', async () => {
@@ -146,6 +188,36 @@ describe('fixed A2UI contract review surface', () => {
     expect(selectA2uiReview({ interactions: [{
       ...wait,
       payload: { questions: [{ ...wait.payload.questions[0], options: [{ label: REVIEW_APPROVE_LABEL }] }] },
+    }] })).toBeNull()
+  })
+
+  it('claims the intent question only with its own receipt, actions, and labels', () => {
+    const reviewed = createIntentReviewProposal(createIntent('understand task', {
+      constraints: [], assumptions: [], non_goals: [], ambiguities: [],
+    }, 'manual'))
+    const envelope = createA2uiIntentReviewEnvelope(reviewed)
+    const wait = {
+      kind: 'question' as const,
+      key: 'intent-wait',
+      sessionId: 'session-1',
+      payload: {
+        questions: [{
+          id: `reliability-intent-review:${reviewed.proposalReceipt}`,
+          detail: encodeA2uiReviewDetail('fallback', envelope),
+          options: [
+            { label: INTENT_APPROVE_LABEL },
+            { label: INTENT_REVISE_LABEL },
+            { label: INTENT_REJECT_LABEL },
+          ],
+        }],
+      },
+      respond: async () => ({ accepted: true }),
+    }
+
+    expect(selectA2uiReview({ interactions: [wait] })?.envelope.kind).toBe('reliability-intent-review')
+    expect(selectA2uiReview({ interactions: [{
+      ...wait,
+      payload: { questions: [{ ...wait.payload.questions[0], id: 'reliability-contract-review:wrong' }] },
     }] })).toBeNull()
   })
 })

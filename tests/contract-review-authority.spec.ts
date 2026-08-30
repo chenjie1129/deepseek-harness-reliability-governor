@@ -6,6 +6,12 @@ import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import { createReviewProposal, requestContractReview } from '../src/contract-review.js'
 import { REVIEW_APPROVE_LABEL } from '../src/a2ui.js'
+import { INTENT_APPROVE_LABEL } from '../src/a2ui.js'
+import {
+  createIntent,
+  createIntentReviewProposal,
+  requestIntentReview,
+} from '../src/intent-review.js'
 
 type TestQuestionRequest = { questions: Array<{ id: string }> }
 type TestAnswer = { answers: Array<{ id: string; selected?: string[] }> }
@@ -44,6 +50,9 @@ function agent(id: string): Agent {
 }
 
 function proposal() {
+  const intentProposal = createIntentReviewProposal(createIntent('produce result', {
+    constraints: [], assumptions: [], non_goals: [], ambiguities: [],
+  }, 'current-agent'))
   return createReviewProposal({
     contractId: 'contract-authority-1',
     contractKind: 'general',
@@ -71,10 +80,62 @@ function proposal() {
       findings: [],
       receipt: 'sha256:coverage',
     },
+    intent: {
+      ...intentProposal.intent,
+      proposalReceipt: intentProposal.proposalReceipt,
+      reviewReceipt: 'sha256:intent-review',
+      channel: 'harness-user-questions',
+      presentation: 'a2ui-v0.9.1-with-native-fallback',
+    },
   })
 }
 
 describe('Harness user-question authority boundary', () => {
+  it('accepts and receipt-binds the interpreted intent for the exact live root', async () => {
+    const ctx = new Context()
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(UserQuestionService)
+    const root = agent('intent-root')
+    ctx.agents.enter(root, undefined)
+    const ask = vi.fn(async (request: { questions: Array<{ id: string }> }) => ({
+      answers: [{ id: request.questions[0].id, selected: [INTENT_APPROVE_LABEL] }],
+    }))
+    registerTestAnswerer(ctx, ask)
+    const reviewed = createIntentReviewProposal(createIntent('preserve requested behavior', {
+      constraints: ['Do not change the API.'], assumptions: [], non_goals: [], ambiguities: [],
+    }, 'current-agent'))
+
+    const result = await requestIntentReview(ctx, root, reviewed, new AbortController().signal)
+
+    expect(result).toMatchObject({
+      review: { decision: 'approved', proposalReceipt: reviewed.proposalReceipt },
+      approvedIntent: { proposalReceipt: reviewed.proposalReceipt, reviewReceipt: result.review.receipt },
+    })
+    await ctx.fiber.dispose()
+  })
+
+  it('cannot ask for intent approval on behalf of a delegated child', async () => {
+    const ctx = new Context()
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(UserQuestionService)
+    const root = agent('intent-authority-root')
+    const child = agent('intent-authority-child')
+    ctx.agents.enter(root, undefined)
+    ctx.agents.enter(child, root)
+    const ask = vi.fn(async () => ({ answers: [] }))
+    registerTestAnswerer(ctx, ask)
+    const reviewed = createIntentReviewProposal(createIntent('change the workspace', {
+      constraints: [], assumptions: [], non_goals: [], ambiguities: [],
+    }, 'current-agent'))
+
+    const result = await requestIntentReview(ctx, child, reviewed, new AbortController().signal)
+
+    expect(result.review.decision).toBe('unavailable')
+    expect(result.approvedIntent).toBeUndefined()
+    expect(ask).not.toHaveBeenCalled()
+    await ctx.fiber.dispose()
+  })
+
   it('accepts the provider decision for the exact live root and receipt-binds it', async () => {
     const ctx = new Context()
     await ctx.plugin(AgentRegistry)

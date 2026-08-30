@@ -5,9 +5,12 @@ import {
   REVIEW_APPROVE_LABEL,
   REVIEW_REJECT_LABEL,
   REVIEW_REVISE_LABEL,
+  INTENT_APPROVE_LABEL,
+  INTENT_REJECT_LABEL,
+  INTENT_REVISE_LABEL,
   decodeA2uiReviewDetail,
 } from '../a2ui.js'
-import type { ReliabilityA2uiReviewEnvelope, ReliabilityReviewAction } from '../a2ui.js'
+import type { ReliabilityA2uiReviewEnvelope } from '../a2ui.js'
 
 interface QuestionItem {
   id: string
@@ -38,6 +41,33 @@ export interface MatchedReview {
   wait: QuestionWait
   questionId: string
   envelope: ReliabilityA2uiReviewEnvelope
+}
+
+function reviewDefinition(envelope: ReliabilityA2uiReviewEnvelope): {
+  questionPrefix: string
+  labels: [string, string, string]
+  actions: Record<string, { source: string; label: string; revision: boolean }>
+} {
+  if (envelope.kind === 'reliability-intent-review') {
+    return {
+      questionPrefix: 'reliability-intent-review',
+      labels: [INTENT_APPROVE_LABEL, INTENT_REVISE_LABEL, INTENT_REJECT_LABEL],
+      actions: {
+        'reliability.intent.approve': { source: 'approve', label: INTENT_APPROVE_LABEL, revision: false },
+        'reliability.intent.revise': { source: 'revise', label: INTENT_REVISE_LABEL, revision: true },
+        'reliability.intent.reject': { source: 'reject', label: INTENT_REJECT_LABEL, revision: false },
+      },
+    }
+  }
+  return {
+    questionPrefix: 'reliability-contract-review',
+    labels: [REVIEW_APPROVE_LABEL, REVIEW_REVISE_LABEL, REVIEW_REJECT_LABEL],
+    actions: {
+      'reliability.contract.approve': { source: 'approve', label: REVIEW_APPROVE_LABEL, revision: false },
+      'reliability.contract.revise': { source: 'revise', label: REVIEW_REVISE_LABEL, revision: true },
+      'reliability.contract.reject': { source: 'reject', label: REVIEW_REJECT_LABEL, revision: false },
+    },
+  }
 }
 
 function escapeHtml(value: string): string {
@@ -73,12 +103,13 @@ export function selectA2uiReview({ interactions }: ComposerOwner): MatchedReview
     if (question?.detail === undefined) continue
     const envelope = decodeA2uiReviewDetail(question.detail)
     if (envelope === undefined) continue
-    if (question.id !== `reliability-contract-review:${envelope.proposalReceipt}`) continue
+    const definition = reviewDefinition(envelope)
+    if (question.id !== `${definition.questionPrefix}:${envelope.proposalReceipt}`) continue
     const labels = question.options?.map(option => option.label) ?? []
     if (labels.length !== 3
-      || labels[0] !== REVIEW_APPROVE_LABEL
-      || labels[1] !== REVIEW_REVISE_LABEL
-      || labels[2] !== REVIEW_REJECT_LABEL) continue
+      || labels[0] !== definition.labels[0]
+      || labels[1] !== definition.labels[1]
+      || labels[2] !== definition.labels[2]) continue
     return { wait: interaction, questionId: question.id, envelope }
   }
   return null
@@ -91,20 +122,17 @@ interface A2uiAction {
   context: Record<string, unknown>
 }
 
-function decisionFor(action: A2uiAction, proposalReceipt: string): {
+function decisionFor(action: A2uiAction, envelope: ReliabilityA2uiReviewEnvelope): {
   selected: string[]
   custom?: string
 } | undefined {
-  if (action.context.proposalReceipt !== proposalReceipt) return undefined
-  const expected: Record<ReliabilityReviewAction, { source: string; label: string }> = {
-    'reliability.contract.approve': { source: 'approve', label: REVIEW_APPROVE_LABEL },
-    'reliability.contract.revise': { source: 'revise', label: REVIEW_REVISE_LABEL },
-    'reliability.contract.reject': { source: 'reject', label: REVIEW_REJECT_LABEL },
-  }
+  if (action.context.proposalReceipt !== envelope.proposalReceipt) return undefined
+  const expected = reviewDefinition(envelope).actions
   if (!(action.name in expected)) return undefined
-  const match = expected[action.name as ReliabilityReviewAction]
+  const match = expected[action.name]
+  if (match === undefined) return undefined
   if (action.sourceComponentId !== match.source) return undefined
-  if (action.name !== 'reliability.contract.revise') return { selected: [match.label] }
+  if (!match.revision) return { selected: [match.label] }
   const feedback = typeof action.context.feedback === 'string' ? action.context.feedback.trim() : ''
   if (feedback.length > 2_000) return undefined
   return feedback === '' ? { selected: [match.label] } : { selected: [], custom: feedback }
@@ -121,7 +149,7 @@ function ReviewSurface({ matched }: { matched: MatchedReview }) {
       setError('The review action did not match this surface.')
       return
     }
-    const decision = decisionFor(action, matched.envelope.proposalReceipt)
+    const decision = decisionFor(action, matched.envelope)
     if (decision === undefined) {
       setError('The review action was invalid or stale. Nothing was approved.')
       return

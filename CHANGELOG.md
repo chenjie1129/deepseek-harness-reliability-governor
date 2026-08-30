@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.7.0
+
+- Split interactive activation into two fail-closed decisions: interpreted intent first, evidence contract second.
+- Add a bounded intent model covering objective, constraints, assumptions, non-goals, ambiguities, and caller-declared authorship.
+- Add a fixed A2UI intent-review surface with the same native Harness question fallback and live-root authority boundary as contract review.
+- Add privacy-minimized `reliability/intent-review` events and version 5 contracts that embed the approved intent and bind the evidence-review receipt to it.
+- Keep the zero-extra-provider-call default: the current task model drafts both proposals, while deterministic code validates structure and the user owns both approvals. Auxiliary contract authorship and fully manual mode remain optional.
+- Preserve explicit unattended `contractReview.mode: off` behavior as unreviewed version 3 contracts; automated benchmarks do not gain a false human-approval claim.
+
 ## 0.6.1
 
 - Restore persisted-session resume on DeepSeek Harness `0.1.2-alpha.1` by registering the Governor's six required event types in the release's fail-closed persistence catalog at plugin load.

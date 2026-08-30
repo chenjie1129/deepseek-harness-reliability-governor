@@ -70,6 +70,7 @@ for (const source of [
   'src/types.ts',
   'src/coverage.ts',
   'src/contract-author.ts',
+  'src/intent-review.ts',
   'src/contract-review.ts',
   'src/session-compat.ts',
   'src/a2ui.ts',
@@ -108,6 +109,11 @@ if (manifest.devDependencies?.['@a2ui/react'] !== '0.9.1'
 const contractReview = await readFile(new URL('src/contract-review.ts', root), 'utf8')
 if (!contractReview.includes('ctx.userQuestions.ask') || !contractReview.includes('proposalReceipt')) {
   throw new Error('contract review does not use the receipt-bound Harness question seam')
+}
+const intentReview = await readFile(new URL('src/intent-review.ts', root), 'utf8')
+if (!intentReview.includes('ctx.userQuestions.ask') || !intentReview.includes('proposalReceipt')
+  || !intentReview.includes("session.append('reliability/intent-review'")) {
+  throw new Error('intent review does not use the receipt-bound Harness question and session seams')
 }
 const client = await readFile(new URL('src/client/index.tsx', root), 'utf8')
 if (!client.includes("@a2ui/react/v0_9") || !client.includes('decodeA2uiReviewDetail')) {

@@ -18,7 +18,7 @@ The following copy follows the official category requirements: one project, an `
 
 ## Reliability Governor
 
-AI agents can say “done” while the requested artifact or tool evidence disagrees. Reliability Governor is an opt-in DeepSeek Harness bundle that changes completion from a model assertion into an explicit evidence decision. v0.6 first maps each declared success claim to independent evidence sources, then asks the user to review the exact contract before activation:
+AI agents can misunderstand a request, choose weak proof, or say “done” while the requested artifact disagrees. Reliability Governor is an opt-in DeepSeek Harness bundle that separates those risks. v0.7 first asks the user to review the agent's interpreted intent, then separately reviews how completion will be proved, and only then changes completion from a model assertion into an explicit evidence decision:
 
 - `certified` — all declared observable checks passed;
 - `exhausted` — checks still failed after a bounded repair budget;
@@ -34,7 +34,7 @@ The package ships a native `dsh.bundle` patch. Its Cordis plugin registers cover
 
 `reliability_assess` reports declared-claim coverage, distinct evidence authorities, brittle-check warnings, and a content receipt without judging task output. Two checks over one file count as one source. It cannot detect requirements omitted from the claim list, so the live protocol retains independently authored reference contracts.
 
-v0.6 also adds a fixed A2UI v0.9.1 Web review with native Harness question fallback. The user sees the objective, claims, checks, coverage findings, authorship, and repair budget. Approval is bound to that proposal receipt; revision, rejection, cancellation, stale actions, or a missing UI provider leave no active contract. A2UI presents the choice, Harness owns the live-root decision channel, and deterministic checks still own certification.
+v0.7 uses two fixed A2UI v0.9.1 Web reviews with native Harness question fallback. The first shows the interpreted objective, constraints, assumptions, non-goals, and ambiguities. Only its exact approval opens the second review for claims, checks, coverage findings, authorship, and repair budget. Both approvals are receipt-bound; revision, rejection, cancellation, stale actions, delegated-agent answers, or a missing UI provider leave no active contract. A2UI presents the choices, Harness owns the live-root decision channel, and deterministic checks still own certification.
 
 Optional receipt-bound contract drafting remains available. The default task agent can remain the author with no extra call, or a configured provider-neutral auxiliary model can make one bounded text-only draft call with no tools, workspace access, repair loop, fallback, or certification authority. These boundaries have scripted mechanism evidence only; no claim is made yet that a live auxiliary model or user review improves contract quality.
 
@@ -51,7 +51,7 @@ git clone https://github.com/chenjie1129/deepseek-harness-reliability-governor.g
 cd deepseek-harness-reliability-governor
 npm ci
 npm pack
-dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.6.1.tgz
+dsh plugin --profile web add ./chenjie1129-dsh-reliability-governor-plugin-0.7.0.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -82,7 +82,7 @@ Please do not submit credentials, private source, customer data, or raw private 
 >
 > 项目地址：https://github.com/chenjie1129/deepseek-harness-reliability-governor
 
-AI Agent 有时会在实际结果尚未满足要求时直接说“已经完成”。Reliability Governor v0.6 是一个可选启用的 DeepSeek Harness Bundle：先用固定 A2UI 界面让用户审查精确的证据合约，再把完成从模型自报改成显式证据判定：
+AI Agent 可能误解用户意图、选择薄弱证据，或在实际结果尚未满足要求时直接说“已经完成”。Reliability Governor v0.7 是一个可选启用的 DeepSeek Harness Bundle：先让用户审查 Agent 对意图的解释，再单独审查证据合约，最后把完成从模型自报改成显式证据判定：
 
 - `certified`：预先声明的可观察检查全部通过；
 - `exhausted`：有限修复次数用尽后仍未通过；

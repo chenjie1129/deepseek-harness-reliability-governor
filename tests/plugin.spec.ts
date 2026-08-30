@@ -8,6 +8,7 @@ import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { apply } from '../src/index.js'
 import { foldReliability } from '../src/types.js'
 import type { ReliabilityCheck } from '../src/types.js'
+import { INTENT_APPROVE_LABEL, REVIEW_APPROVE_LABEL } from '../src/a2ui.js'
 
 interface ReturnedToolClaim {
   id: string
@@ -71,9 +72,14 @@ function harness(files: Record<string, string> = {}, llmChunks?: unknown[]) {
     if (llmChunks === undefined) throw new Error('unexpected auxiliary model call')
     for (const chunk of llmChunks) yield chunk
   })())
-  const askUser = vi.fn((request: { questions: Array<{ id: string }> }) => Promise.resolve({
-    answers: [{ id: request.questions[0]?.id ?? '', selected: ['Approve exact contract'] }],
-  }))
+  const askUser = vi.fn((request: { questions: Array<{ id: string }> }) => {
+    const id = request.questions[0]?.id ?? ''
+    return Promise.resolve({
+      answers: [{ id, selected: [id.startsWith('reliability-intent-review:')
+        ? INTENT_APPROVE_LABEL
+        : REVIEW_APPROVE_LABEL] }],
+    })
+  })
   let stopping: ((payload: { agent: Agent; turn: number; signal: AbortSignal }) => Promise<void>) | undefined
   const context = {
     fs: fakeFs(files),
@@ -143,6 +149,12 @@ function findTool(tools: ToolDefinition[], name: string): ToolDefinition {
 
 const readyContract = {
   objective: 'produce result',
+  intent: {
+    constraints: ['Preserve unrelated workspace files.'],
+    assumptions: [],
+    non_goals: [],
+    ambiguities: [],
+  },
   claims: [{
     id: 'result-ready', statement: 'The result contains READY', importance: 'critical' as const,
     verification: 'deterministic' as const, check_ids: ['ready'],
@@ -206,12 +218,61 @@ describe('DeepSeek Harness plugin composition', () => {
     expect(foldReliability(session.events).contract).toBeUndefined()
   })
 
+  it('requires an explicit bounded intent before either interactive review begins', async () => {
+    const mounted = harness()
+    apply(mounted.context)
+    const session = createSession('missing-intent')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+    const { intent: _intent, ...withoutIntent } = readyContract
+
+    await expect(findTool(mounted.tools, 'reliability_begin').execute(
+      withoutIntent,
+      execution(agent, 'reliability_begin'),
+    )).rejects.toThrow('intent is required')
+    expect(mounted.askUser).not.toHaveBeenCalled()
+    expect(foldReliability(session.events).contract).toBeUndefined()
+  })
+
+  it('stops after an intent revision request and never opens evidence review', async () => {
+    const mounted = harness()
+    mounted.askUser.mockImplementationOnce((request: { questions: Array<{ id: string }> }) => Promise.resolve({
+      answers: [{
+        id: request.questions[0].id,
+        selected: [],
+        custom: 'Keep the existing API and state that as a constraint.',
+      }],
+    }))
+    apply(mounted.context)
+    const session = createSession('intent-revision')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+
+    const result = await findTool(mounted.tools, 'reliability_begin').execute(
+      readyContract,
+      execution(agent, 'reliability_begin'),
+    )
+    const serialized = JSON.stringify(session.events)
+
+    expect(result).toMatchObject({
+      status: 'intent-revision-requested',
+      feedback: 'Keep the existing API and state that as a constraint.',
+    })
+    expect(mounted.askUser).toHaveBeenCalledOnce()
+    expect(foldReliability(session.events).latestIntentReview).toMatchObject({
+      decision: 'revision-requested', feedback: { receipt: expect.stringMatching(/^sha256:/) },
+    })
+    expect(foldReliability(session.events).latestReview).toBeUndefined()
+    expect(foldReliability(session.events).contract).toBeUndefined()
+    expect(serialized).not.toContain('Keep the existing API')
+  })
+
   it.each([
     { label: 'Request revision', status: 'revision-requested', decision: 'revision-requested' },
     { label: 'Reject contract', status: 'rejected', decision: 'rejected' },
   ])('does not activate when the user chooses $decision', async ({ label, status, decision }) => {
     const mounted = harness()
     mounted.askUser.mockImplementationOnce((request: { questions: Array<{ id: string }> }) => Promise.resolve({
+      answers: [{ id: request.questions[0].id, selected: [INTENT_APPROVE_LABEL] }],
+    })).mockImplementationOnce((request: { questions: Array<{ id: string }> }) => Promise.resolve({
       answers: [{ id: request.questions[0].id, selected: [label] }],
     }))
     apply(mounted.context)
@@ -235,6 +296,8 @@ describe('DeepSeek Harness plugin composition', () => {
     const session = createSession('review-feedback')
     const agent = { session, steer: vi.fn() } as unknown as Agent
     mounted.askUser.mockImplementationOnce((request: { questions: Array<{ id: string }> }) => Promise.resolve({
+      answers: [{ id: request.questions[0].id, selected: [INTENT_APPROVE_LABEL] }],
+    })).mockImplementationOnce((request: { questions: Array<{ id: string }> }) => Promise.resolve({
       answers: [{ id: request.questions[0].id, selected: [], custom: 'Use a semantic JSON check instead.' }],
     }))
 
@@ -256,13 +319,18 @@ describe('DeepSeek Harness plugin composition', () => {
     expect(foldReliability(session.events).contract).toBeUndefined()
   })
 
-  it('fails closed when the review provider is unavailable or returns a malformed decision', async () => {
-    for (const mode of ['throw', 'malformed'] as const) {
+  it('fails closed when either review stage is unavailable or malformed', async () => {
+    for (const stage of ['intent', 'contract'] as const) for (const mode of ['throw', 'malformed'] as const) {
       const mounted = harness()
+      if (stage === 'contract') {
+        mounted.askUser.mockImplementationOnce((request: { questions: Array<{ id: string }> }) => Promise.resolve({
+          answers: [{ id: request.questions[0].id, selected: [INTENT_APPROVE_LABEL] }],
+        }))
+      }
       if (mode === 'throw') mounted.askUser.mockRejectedValueOnce(new Error('no UI provider'))
       else mounted.askUser.mockResolvedValueOnce({ answers: [] })
       apply(mounted.context)
-      const session = createSession(`review-${mode}`)
+      const session = createSession(`review-${stage}-${mode}`)
       const agent = { session, steer: vi.fn() } as unknown as Agent
 
       const result = await findTool(mounted.tools, 'reliability_begin').execute(
@@ -270,7 +338,7 @@ describe('DeepSeek Harness plugin composition', () => {
         execution(agent, 'reliability_begin'),
       )
 
-      expect(result).toMatchObject({ status: 'review-unavailable' })
+      expect(result).toMatchObject({ status: stage === 'intent' ? 'intent-review-unavailable' : 'review-unavailable' })
       expect(foldReliability(session.events).contract).toBeUndefined()
     }
   })
@@ -308,8 +376,8 @@ describe('DeepSeek Harness plugin composition', () => {
     )).rejects.toThrow('contract review is already pending')
 
     const questionId = (mounted.askUser.mock.calls[0][0] as { questions: Array<{ id: string }> }).questions[0].id
-    answer?.({ answers: [{ id: questionId, selected: ['Approve exact contract'] }] })
-    await expect(first).resolves.toMatchObject({ status: 'active', contract: { version: 4 } })
+    answer?.({ answers: [{ id: questionId, selected: [INTENT_APPROVE_LABEL] }] })
+    await expect(first).resolves.toMatchObject({ status: 'active', contract: { version: 5 } })
     expect(session.events.filter(event => event.type === 'reliability/contract')).toHaveLength(1)
   })
 
@@ -321,6 +389,7 @@ describe('DeepSeek Harness plugin composition', () => {
     const agent = { session, steer } as unknown as Agent
     await findTool(mounted.tools, 'reliability_begin').execute({
       objective: 'produce result',
+      intent: readyContract.intent,
       claims: [{
         id: 'result-ready', statement: 'The result contains READY', importance: 'critical',
         verification: 'deterministic', check_ids: ['ready'],
@@ -331,6 +400,12 @@ describe('DeepSeek Harness plugin composition', () => {
     await mounted.getStopping()?.({ agent, turn: 1, signal: new AbortController().signal })
 
     const state = foldReliability(session.events)
+    expect(mounted.askUser).toHaveBeenCalledTimes(2)
+    expect(state.latestIntentReview?.decision).toBe('approved')
+    expect(state.contract?.version).toBe(5)
+    if (state.contract?.version !== 5) throw new Error('expected a two-stage reviewed contract')
+    expect(state.contract.intent.reviewReceipt).toBe(state.latestIntentReview?.receipt)
+    expect(state.contract.review.intentProposalReceipt).toBe(state.contract.intent.proposalReceipt)
     expect(state.attempts).toHaveLength(1)
     expect(state.terminal?.status).toBe('certified')
     expect(state.terminal?.receipt).toMatch(/^sha256:/)
@@ -346,6 +421,7 @@ describe('DeepSeek Harness plugin composition', () => {
     const agent = { session, steer } as unknown as Agent
     await findTool(mounted.tools, 'reliability_begin').execute({
       objective: 'produce result',
+      intent: readyContract.intent,
       claims: [{
         id: 'result-exists', statement: 'The result file exists', importance: 'critical',
         verification: 'deterministic', check_ids: ['missing'],
@@ -368,6 +444,10 @@ describe('DeepSeek Harness plugin composition', () => {
     const agent = { session, steer: vi.fn() } as unknown as Agent
     await findTool(mounted.tools, 'reliability_begin').execute({
       objective: 'judge visual quality',
+      intent: {
+        constraints: [], assumptions: ['Visual quality requires a later human decision.'],
+        non_goals: [], ambiguities: ['The desired visual standard is subjective.'],
+      },
       claims: [{
         id: 'clean-run', statement: 'The tool trajectory has no errors', importance: 'critical',
         verification: 'deterministic', check_ids: ['clean'],
@@ -418,6 +498,7 @@ describe('DeepSeek Harness plugin composition', () => {
 
     await findTool(mounted.tools, 'reliability_begin_code').execute({
       objective: 'make the code pass trusted tests',
+      intent: readyContract.intent,
     }, execution(agent, 'reliability_begin_code'))
     const codeTool = findTool(mounted.tools, 'reliability_code_verify')
     const response = await codeTool.execute({
@@ -448,9 +529,9 @@ describe('DeepSeek Harness plugin composition', () => {
       kind: 'code_verification_succeeded',
       profile: 'unit-tests',
     })
-    expect(state.contract?.version).toBe(4)
-    expect(state.contract?.version === 4 && state.contract.coverageAssessment.status).toBe('ready')
-    expect(state.contract?.version === 4 && state.contract.authorship).toEqual({
+    expect(state.contract?.version).toBe(5)
+    expect(state.contract?.version === 5 && state.contract.coverageAssessment.status).toBe('ready')
+    expect(state.contract?.version === 5 && state.contract.authorship).toEqual({
       version: 1,
       mode: 'current-agent',
       assurance: 'caller-declared',
@@ -590,6 +671,7 @@ describe('DeepSeek Harness plugin composition', () => {
 
     const activated = await begin.execute({
       objective: response.draft.objective,
+      intent: readyContract.intent,
       claims: response.draft.claims,
       checks: response.draft.checks,
       draft_receipt: response.draft.draft_receipt,
@@ -597,7 +679,7 @@ describe('DeepSeek Harness plugin composition', () => {
     expect(activated).toMatchObject({
       status: 'active',
       contract: {
-        version: 4,
+        version: 5,
         authorship: {
           mode: 'auxiliary-model',
           assurance: 'draft-receipt-bound',
@@ -703,6 +785,9 @@ describe('DeepSeek Harness plugin composition', () => {
     const agent = { session, steer: vi.fn() } as unknown as Agent
     const response = await findTool(mounted.tools, 'reliability_begin').execute({
       objective: 'use a reviewed contract',
+      intent: {
+        constraints: ['Use only the supplied reviewed contract.'], assumptions: [], non_goals: [], ambiguities: [],
+      },
       claims: [{
         id: 'artifact', statement: 'The artifact exists', importance: 'critical',
         verification: 'deterministic', check_ids: ['artifact'],
@@ -759,6 +844,7 @@ describe('DeepSeek Harness plugin composition', () => {
     }))
     const activated = await findTool(mounted.tools, 'reliability_begin_code').execute({
       objective: response.draft.objective,
+      intent: readyContract.intent,
       claims: response.draft.claims,
       checks: response.draft.checks,
       draft_receipt: response.draft.draft_receipt,
@@ -767,7 +853,7 @@ describe('DeepSeek Harness plugin composition', () => {
       status: 'active',
       requiredProfiles: ['unit-tests'],
       contract: {
-        version: 4,
+        version: 5,
         authorship: { mode: 'auxiliary-model', draftReceipt: response.draft.draft_receipt },
       },
     })
