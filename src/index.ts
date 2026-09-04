@@ -41,9 +41,25 @@ import type {
   CodeVerificationProfileConfig,
   ResolvedCodeVerificationProfile,
 } from './code-verifier.js'
+import {
+  appendBusinessOutcomeContract,
+  appendBusinessOutcomeObservation,
+  appendBusinessOutcomeTerminal,
+  createBusinessOutcomeContract,
+  evaluateBusinessOutcome,
+  resolveBusinessOutcomeProfiles,
+  runBusinessOutcomeProfile,
+  summarizeBusinessOutcomeProfile,
+} from './outcome.js'
+import type {
+  BusinessOutcomeProfileConfig,
+  ResolvedBusinessOutcomeProfile,
+} from './outcome.js'
 import { registerCodeVerificationSkill } from './skill.js'
 import { foldReliability } from './types.js'
 import type {
+  BusinessOutcomeContract,
+  BusinessOutcomeProbe,
   ReliabilityCheck,
   ReliabilityCheckResult,
   ReliabilityClaim,
@@ -76,6 +92,7 @@ export * from './a2ui.js'
 export * from './contract-review.js'
 export * from './intent-review.js'
 export * from './session-compat.js'
+export * from './outcome.js'
 
 export const name = 'reliability-governor'
 export const inject = [
@@ -95,6 +112,10 @@ export interface Config {
   codeVerificationProfiles?: CodeVerificationProfileConfig[]
   /** Per-stream in-memory output bound. Raw output is never stored in receipts. */
   codeVerificationMaxOutputBytes?: number
+  /** Deployment-controlled, read-only business outcome observers and immutable goal policies. */
+  businessOutcomeProfiles?: BusinessOutcomeProfileConfig[]
+  /** Per-observation output bound. Raw metric output is never stored in receipts. */
+  businessOutcomeMaxOutputBytes?: number
   /** Select who proposes the initial claim/check set. Certification remains deterministic in every mode. */
   contractAuthoring?: ContractAuthoringConfig
   /** Require a UI-backed user decision over the exact contract before activation. */
@@ -109,6 +130,32 @@ const CodeVerificationProfileSchema = z.object({
   timeoutMs: z.number().default(120_000),
   sandboxMode: z.union(['read-only', 'workspace-write'] as const).default('read-only'),
   required: z.boolean().default(true),
+})
+
+const BusinessOutcomePredicateSchema = z.object({
+  id: z.string(),
+  metric: z.string(),
+  operator: z.union(['gte', 'lte', 'eq', 'delta-gte', 'delta-lte'] as const),
+  value: z.number(),
+})
+
+const BusinessOutcomeProfileSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  command: z.string(),
+  args: z.array(z.string()).default([]),
+  timeoutMs: z.number().default(120_000),
+  metrics: z.array(z.object({
+    name: z.string(),
+    unit: z.string(),
+  })),
+  target: BusinessOutcomePredicateSchema,
+  guardrails: z.array(BusinessOutcomePredicateSchema).default([]),
+  minimumSampleSize: z.number(),
+  maxDataAgeMs: z.number().default(24 * 60 * 60 * 1_000),
+  notBeforeMs: z.number().default(0),
+  deadlineMs: z.number().default(7 * 24 * 60 * 60 * 1_000),
+  attribution: z.union(['direct', 'correlational', 'experiment'] as const).default('correlational'),
 })
 
 const ContractAuthoringSchema = z.object({
@@ -132,6 +179,8 @@ export const Config: z<Config> = z.object({
   autoVerifyAtTurnStop: z.boolean().default(true),
   codeVerificationProfiles: z.array(CodeVerificationProfileSchema).default([]),
   codeVerificationMaxOutputBytes: z.number().default(64 * 1024),
+  businessOutcomeProfiles: z.array(BusinessOutcomeProfileSchema).default([]),
+  businessOutcomeMaxOutputBytes: z.number().default(64 * 1024),
   contractAuthoring: ContractAuthoringSchema,
   contractReview: ContractReviewSchema,
 })
@@ -143,6 +192,8 @@ interface ResolvedConfig {
   autoVerifyAtTurnStop: boolean
   codeVerificationProfiles: ResolvedCodeVerificationProfile[]
   codeVerificationMaxOutputBytes: number
+  businessOutcomeProfiles: ResolvedBusinessOutcomeProfile[]
+  businessOutcomeMaxOutputBytes: number
   contractAuthoring: ResolvedContractAuthoringConfig
   contractReview: ResolvedContractReviewConfig
 }
@@ -162,6 +213,8 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     'autoVerifyAtTurnStop',
     'codeVerificationProfiles',
     'codeVerificationMaxOutputBytes',
+    'businessOutcomeProfiles',
+    'businessOutcomeMaxOutputBytes',
     'contractAuthoring',
     'contractReview',
   ].includes(key))
@@ -175,6 +228,12 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     codeVerificationMaxOutputBytes: positiveSafeInteger(
       'codeVerificationMaxOutputBytes',
       config.codeVerificationMaxOutputBytes ?? 64 * 1024,
+      1024 * 1024,
+    ),
+    businessOutcomeProfiles: resolveBusinessOutcomeProfiles(config.businessOutcomeProfiles),
+    businessOutcomeMaxOutputBytes: positiveSafeInteger(
+      'businessOutcomeMaxOutputBytes',
+      config.businessOutcomeMaxOutputBytes ?? 64 * 1024,
       1024 * 1024,
     ),
     contractAuthoring: resolveContractAuthoringConfig(config.contractAuthoring),
@@ -316,6 +375,7 @@ function normalizeClaims(claims: ToolClaim[]): ReliabilityClaim[] {
 function promptFor(
   mode: ResolvedContractAuthoringConfig['mode'],
   reviewMode: ResolvedContractReviewConfig['mode'],
+  hasBusinessOutcomeProfiles: boolean,
 ): string {
   const authoring = mode === 'auxiliary-model'
     ? `Contract authorship mode is auxiliary-model. After read-only exploration and before mutation, call reliability_draft with contract_kind (general or code), the objective, and a concise, non-secret context summary. Review its assessment. For general work, pass the returned draft_receipt and exact objective, claims, and checks unchanged to reliability_begin. For code work with required trusted profiles, pass those exact fields to reliability_begin_code; required profiles are injected before the draft receipt is created. The auxiliary model has no tools or certification authority. Do not bypass, edit, reuse, or impersonate its receipt.`
@@ -325,11 +385,16 @@ function promptFor(
   const review = reviewMode === 'required'
     ? 'Two-stage review is required. After bounded read-only discovery and before mutation, reliability_begin and reliability_begin_code first show the interpreted objective, constraints, assumptions, non-goals, and ambiguities to the live root user. Only exact intent approval proceeds to a separate evidence-contract review. Only approval of both receipt-bound proposals opens a version 5 contract. Include the intent object on every begin call. Revision, rejection, cancellation, unavailable UI, or malformed response at either stage leaves the contract inactive. Never claim that either approval certifies the later outcome.'
     : 'Contract review mode is off for this unattended deployment. No human approval is claimed or recorded.'
+  const outcome = hasBusinessOutcomeProfiles
+    ? `Deployment-controlled business outcome profiles are available. Before mutation, list them with reliability_outcome_profiles and pass the exact applicable profile id as outcome_profile to reliability_begin or reliability_begin_code. The evidence review binds the profile's KPI, threshold, observation window, attribution mode, and guardrails. Delivery certification does not mean the business goal was achieved. After delivery certification, use reliability_outcome_observe until the outcome becomes achieved, missed, inconclusive, or expired.`
+    : 'No deployment-controlled business outcome profiles are configured. Do not claim that delivery checks prove downstream business impact.'
   return `Reliability Governor is available for evidence-gated completion.
 
 ${authoring}
 
 ${review}
+
+${outcome}
 
 For a substantive task with observable success criteria—especially code/file changes, tool workflows, or a user request for stable/reliable execution—map every success claim to evidence before opening a contract. Use the smallest independent evidence set that covers every claim; multiple checks over one file or tool are one source, not independent corroboration. The governor evaluates coverage and checks without using an LLM and records durable receipts.
 
@@ -450,16 +515,42 @@ async function activateContract(
   reviewConfig: ResolvedContractReviewConfig,
   pendingReviews: WeakSet<Agent>,
   signal: AbortSignal,
+  outcomeProfile?: ResolvedBusinessOutcomeProfile,
+  outcomeMaxOutputBytes?: number,
 ): Promise<{
   status: string
   contract?: ReliabilityContract
+  outcomeContract?: BusinessOutcomeContract
+  baseline?: BusinessOutcomeProbe
   intentReview?: unknown
   review?: unknown
   feedback?: string
 }> {
+  const activate = async (contract: ReliabilityContract): Promise<{
+    status: string
+    contract?: ReliabilityContract
+    outcomeContract?: BusinessOutcomeContract
+    baseline?: BusinessOutcomeProbe
+  }> => {
+    if (outcomeProfile === undefined) {
+      agent.session.append('reliability/contract', contract)
+      return { status: 'active', contract }
+    }
+    const baseline = await runBusinessOutcomeProfile(
+      ctx,
+      agent,
+      outcomeProfile,
+      outcomeMaxOutputBytes ?? 64 * 1024,
+      signal,
+    )
+    if (!baseline.succeeded) return { status: 'outcome-baseline-failed', baseline }
+    const outcomeContract = createBusinessOutcomeContract(contract, outcomeProfile, baseline, Date.now())
+    agent.session.append('reliability/contract', contract)
+    appendBusinessOutcomeContract(agent.session, outcomeContract)
+    return { status: 'active', contract, outcomeContract, baseline }
+  }
   if (reviewConfig.mode === 'off') {
-    agent.session.append('reliability/contract', candidate)
-    return { status: 'active', contract: candidate }
+    return activate(candidate)
   }
   const authored = requireAuthoredContract(candidate)
   if (pendingReviews.has(agent)) {
@@ -496,6 +587,9 @@ async function activateContract(
       authorship: authored.authorship,
       coverageAssessment: authored.coverageAssessment,
       intent: intentResult.approvedIntent,
+      ...(outcomeProfile === undefined
+        ? {}
+        : { businessOutcome: summarizeBusinessOutcomeProfile(outcomeProfile) }),
     })
     const result = await requestContractReview(ctx, agent, proposal, signal)
     if (result.reference === undefined) {
@@ -517,8 +611,8 @@ async function activateContract(
       intent: intentResult.approvedIntent,
       review: result.reference,
     })
-    agent.session.append('reliability/contract', contract)
-    return { status: 'active', contract, intentReview: intentResult.review, review: result.review }
+    const activated = await activate(contract)
+    return { ...activated, intentReview: intentResult.review, review: result.review }
   } finally {
     pendingReviews.delete(agent)
   }
@@ -534,7 +628,11 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
   ctx.systemPrompt.section({
     name: 'reliability:policy',
     order: 118,
-    text: promptFor(config.contractAuthoring.mode, config.contractReview.mode),
+    text: promptFor(
+      config.contractAuthoring.mode,
+      config.contractReview.mode,
+      config.businessOutcomeProfiles.length > 0,
+    ),
   })
 
   if (config.contractAuthoring.mode === 'auxiliary-model') {
@@ -615,6 +713,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       intent: { ...INTENT_SCHEMA, description: 'Required in interactive review mode. Makes the interpreted constraints, assumptions, non-goals, and ambiguities explicit before evidence review.' },
       claims: { type: 'array', required: true, items: CLAIM_SCHEMA, description: 'Every declared success claim mapped to supporting check ids.' },
       checks: { type: 'array', required: true, items: CHECK_SCHEMA, description: 'Deterministic assertions that collectively prove the outcome.' },
+      outcome_profile: { type: 'string', description: 'Optional deployment-controlled business outcome profile id. Its goal is receipt-bound into evidence review and observed after delivery certification.' },
       max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
       draft_receipt: { type: 'string', description: 'Required in auxiliary-model mode; returned by reliability_draft.' },
     },
@@ -631,6 +730,12 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       }
       const checks = args.checks as ReliabilityCheck[]
       const claims = normalizeClaims(args.claims as ToolClaim[])
+      const outcomeProfile = args.outcome_profile === undefined
+        ? undefined
+        : config.businessOutcomeProfiles.find(profile => profile.id === args.outcome_profile)
+      if (args.outcome_profile !== undefined && outcomeProfile === undefined) {
+        throw new Error(`unknown business outcome profile: ${args.outcome_profile}`)
+      }
       validateChecks(checks, config)
       const assessment = assessContractCoverage({ objective: args.objective, claims, checks })
       if (assessment.status !== 'ready') {
@@ -655,6 +760,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       return asJson(await activateContract(
         ctx, agent, 'general', contract, args.intent as ToolIntentInput | undefined,
         config.contractAuthoring.mode, config.contractReview, pendingReviews, exec.signal,
+        outcomeProfile, config.businessOutcomeMaxOutputBytes,
       ))
     },
   }))
@@ -670,6 +776,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       claims: { type: 'array', items: CLAIM_SCHEMA, description: 'Exact full claim set returned by reliability_draft; used only in auxiliary-model mode.' },
       checks: { type: 'array', items: CHECK_SCHEMA, description: 'Exact full check set returned by reliability_draft; used only in auxiliary-model mode.' },
       draft_receipt: { type: 'string', description: 'Exact code-draft receipt; required only in auxiliary-model mode.' },
+      outcome_profile: { type: 'string', description: 'Optional deployment-controlled business outcome profile id. Its goal is receipt-bound into evidence review and observed after delivery certification.' },
       max_attempts: { type: 'integer', description: `Optional repair budget, capped by deployment at ${config.maxAttempts}.` },
     },
     output: {
@@ -684,6 +791,12 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
         throw new Error(`contract ${state.contract.contractId} is still active; verify or abstain before opening another`)
       }
       const requiredProfiles = config.codeVerificationProfiles.filter(profile => profile.required)
+      const outcomeProfile = args.outcome_profile === undefined
+        ? undefined
+        : config.businessOutcomeProfiles.find(profile => profile.id === args.outcome_profile)
+      if (args.outcome_profile !== undefined && outcomeProfile === undefined) {
+        throw new Error(`unknown business outcome profile: ${args.outcome_profile}`)
+      }
       if (requiredProfiles.length === 0) {
         throw new Error('no required trusted code-verification profiles are configured; ask the deployment owner to configure codeVerificationProfiles')
       }
@@ -749,6 +862,7 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
       const activated = await activateContract(
         ctx, agent, 'code', contract, args.intent as ToolIntentInput | undefined,
         config.contractAuthoring.mode, config.contractReview, pendingReviews, exec.signal,
+        outcomeProfile, config.businessOutcomeMaxOutputBytes,
       )
       return asJson({
         ...activated,
@@ -768,11 +882,31 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
     async execute(_args, exec) {
       const session = requireAgent(exec).session
       const before = foldReliability(session.events)
-      if (before.terminal !== undefined) return asJson({ status: before.terminal.status, terminal: before.terminal })
+      if (before.terminal !== undefined) {
+        if (before.terminal.status === 'certified' && before.outcomeContract !== undefined) {
+          return asJson({
+            status: 'delivery-certified',
+            outcomeStatus: before.outcomeTerminal?.status ?? 'observing',
+            terminal: before.terminal,
+            outcomeContract: before.outcomeContract,
+            outcomeTerminal: before.outcomeTerminal,
+          })
+        }
+        return asJson({ status: before.terminal.status, terminal: before.terminal })
+      }
       const { state, attempt } = await verify(ctx, session, config, 'manual', exec.signal)
       if (attempt === undefined || state.contract === undefined) throw new Error('verification produced no attempt')
       if (attempt.passed) {
         const terminal = appendTerminal(session, state.contract, 'certified', 'all deterministic checks passed', attempt.receipt)
+        if (state.outcomeContract !== undefined) {
+          return asJson({
+            status: 'delivery-certified',
+            outcomeStatus: state.outcomeTerminal?.status ?? 'observing',
+            attempt,
+            terminal,
+            outcomeContract: state.outcomeContract,
+          })
+        }
         return asJson({ status: 'certified', attempt, terminal })
       }
       if (attempt.attempt >= state.contract.maxAttempts) {
@@ -867,6 +1001,104 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
     },
   }))
 
+  ctx.tools.register(defineTool({
+    name: 'reliability_outcome_profiles',
+    description: 'List deployment-controlled business outcome profiles. Profiles bind authoritative metrics, targets, guardrails, observation windows, and attribution policy without exposing executable configuration.',
+    parameters: {},
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    execute() {
+      return Promise.resolve(asJson({
+        profiles: config.businessOutcomeProfiles.map(summarizeBusinessOutcomeProfile),
+      }))
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_outcome_observe',
+    description: 'Run the active deployment-controlled business outcome profile after delivery certification and evaluate its target, sample-size requirement, observation window, and guardrails.',
+    parameters: {},
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    async execute(_args, exec) {
+      const agent = requireAgent(exec)
+      const state = foldReliability(agent.session.events)
+      if (state.outcomeContract === undefined) throw new Error('no business outcome contract exists in this session')
+      if (state.outcomeTerminal !== undefined) {
+        return asJson({ status: state.outcomeTerminal.status, terminal: state.outcomeTerminal })
+      }
+      if (state.terminal?.status !== 'certified') {
+        throw new Error('business outcome observation requires certified delivery evidence')
+      }
+      const now = Date.now()
+      if (now < state.outcomeContract.notBeforeAt) {
+        return asJson({
+          status: 'observing',
+          reason: 'observation window has not opened',
+          retryAt: state.outcomeContract.notBeforeAt,
+          deadlineAt: state.outcomeContract.deadlineAt,
+        })
+      }
+      const profile = config.businessOutcomeProfiles.find(candidate =>
+        candidate.id === state.outcomeContract?.profile.id
+        && candidate.profileReceipt === state.outcomeContract.profile.profileReceipt)
+      if (profile === undefined) {
+        throw new Error('business outcome profile is missing or changed since contract activation')
+      }
+      const probe = await runBusinessOutcomeProfile(
+        ctx,
+        agent,
+        profile,
+        config.businessOutcomeMaxOutputBytes,
+        exec.signal,
+      )
+      const evaluatedAt = Date.now()
+      const evaluation = evaluateBusinessOutcome(state.outcomeContract, probe, evaluatedAt)
+      const observation = appendBusinessOutcomeObservation(agent.session, state.outcomeContract, probe, evaluation)
+      if (evaluation.status === 'achieved' || evaluation.status === 'missed' || evaluation.status === 'inconclusive') {
+        const terminalStatus = evaluation.status === 'inconclusive' && !probe.succeeded
+          ? 'expired'
+          : evaluation.status
+        const terminal = appendBusinessOutcomeTerminal(
+          agent.session,
+          state.outcomeContract,
+          terminalStatus,
+          evaluation.reason,
+          observation.receipt,
+        )
+        return asJson({ status: terminal.status, observation, terminal })
+      }
+      return asJson({
+        status: 'observing',
+        observation,
+        retryAt: Math.max(evaluatedAt, state.outcomeContract.notBeforeAt),
+        deadlineAt: state.outcomeContract.deadlineAt,
+      })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'reliability_outcome_status',
+    description: 'Read the active business outcome contract, baseline, observations, terminal result, and receipts without running another observation.',
+    parameters: {},
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    execute(_args, exec) {
+      const state = foldReliability(requireAgent(exec).session.events)
+      return Promise.resolve(asJson({
+        contract: state.outcomeContract,
+        observations: state.outcomeObservations,
+        terminal: state.outcomeTerminal,
+      }))
+    },
+  }))
+
   if (config.autoVerifyAtTurnStop) {
     ctx.on('agent/turn-stopping', async ({ agent, signal }): Promise<void> => {
       const before = foldReliability(agent.session.events)
@@ -876,7 +1108,15 @@ export function apply(ctx: Context, rawConfig: Config = {}): void {
 
       if (attempt.passed) {
         const terminal = appendTerminal(agent.session, state.contract, 'certified', 'all deterministic checks passed', attempt.receipt)
-        agent.steer(pluginMessage(`Reliability contract certified. Report the outcome truthfully and include receipt ${terminal.receipt}.`))
+        if (state.outcomeContract !== undefined) {
+          agent.steer(pluginMessage(
+            `Delivery evidence is certified, but the business outcome is still observing. `
+            + `Do not claim that the business goal was achieved. Report delivery receipt ${terminal.receipt} `
+            + `and outcome contract receipt ${state.outcomeContract.receipt}.`,
+          ))
+        } else {
+          agent.steer(pluginMessage(`Reliability contract certified. Report the outcome truthfully and include receipt ${terminal.receipt}.`))
+        }
         return
       }
 

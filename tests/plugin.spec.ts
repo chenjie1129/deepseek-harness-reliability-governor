@@ -163,7 +163,7 @@ const readyContract = {
 }
 
 describe('DeepSeek Harness plugin composition', () => {
-  it('registers one policy section, one skill provider, eight tools, and one turn-stopping hook', () => {
+  it('registers one policy section, one skill provider, eleven tools, and one turn-stopping hook', () => {
     const mounted = harness()
     apply(mounted.context)
 
@@ -178,6 +178,9 @@ describe('DeepSeek Harness plugin composition', () => {
       'reliability_abstain',
       'reliability_code_profiles',
       'reliability_code_verify',
+      'reliability_outcome_profiles',
+      'reliability_outcome_observe',
+      'reliability_outcome_status',
     ])
     expect(mounted.getStopping()).toBeTypeOf('function')
     expect(mounted.llmStream).not.toHaveBeenCalled()
@@ -411,6 +414,104 @@ describe('DeepSeek Harness plugin composition', () => {
     expect(state.terminal?.receipt).toMatch(/^sha256:/)
     expect(steer).toHaveBeenCalledOnce()
     expect(JSON.stringify(steer.mock.calls[0])).toContain(state.terminal?.receipt)
+  })
+
+  it('separates delivery certification from a receipt-bound business outcome', async () => {
+    const mounted = harness({ 'result.txt': 'READY\n' })
+    const metricNow = Date.now()
+    const processResult = (text: string) => ({
+      done: Promise.resolve({ exitCode: 0, signal: null }),
+      collected: {
+        stdout: {
+          readFrom: () => ({ text, nextOffset: Buffer.byteLength(text), lossy: false }),
+        },
+        stderr: {
+          readFrom: () => ({ text: '', nextOffset: 0, lossy: false }),
+        },
+      },
+    })
+    mounted.spawn
+      .mockImplementationOnce(() => processResult(JSON.stringify({
+        dataAsOf: metricNow,
+        metrics: { activation_rate: 0.1 },
+        sampleSize: 100,
+      })))
+      .mockImplementationOnce(() => processResult(JSON.stringify({
+        dataAsOf: metricNow + 1,
+        metrics: { activation_rate: 0.25 },
+        sampleSize: 150,
+      })))
+    apply(mounted.context, {
+      maxAttempts: 2,
+      businessOutcomeProfiles: [{
+        id: 'activation-rate',
+        description: 'Activation rate reaches the approved business target.',
+        command: 'observe-activation',
+        metrics: [{ name: 'activation_rate', unit: 'ratio' }],
+        target: { id: 'activation', metric: 'activation_rate', operator: 'gte', value: 0.2 },
+        minimumSampleSize: 100,
+        notBeforeMs: 0,
+        deadlineMs: 60_000,
+        attribution: 'correlational',
+      }],
+    })
+    const session = createSession('business-outcome')
+    const agent = { session, steer: vi.fn() } as unknown as Agent
+
+    const listed = await findTool(mounted.tools, 'reliability_outcome_profiles').execute(
+      {},
+      execution(agent, 'reliability_outcome_profiles'),
+    )
+    expect(listed).toMatchObject({
+      profiles: [{ id: 'activation-rate', target: { metric: 'activation_rate', value: 0.2 } }],
+    })
+    expect(JSON.stringify(listed)).not.toContain('observe-activation')
+
+    const begin = await findTool(mounted.tools, 'reliability_begin').execute({
+      ...readyContract,
+      outcome_profile: 'activation-rate',
+    }, execution(agent, 'reliability_begin'))
+    expect(begin).toMatchObject({
+      status: 'active',
+      outcomeContract: {
+        profile: { id: 'activation-rate', target: { metric: 'activation_rate', value: 0.2 } },
+        baseline: { succeeded: true, snapshot: { metrics: { activation_rate: 0.1 } } },
+      },
+    })
+    const reviewPayload = JSON.stringify(mounted.askUser.mock.calls[1]?.[0])
+    expect(reviewPayload).toContain('activation-rate')
+    expect(reviewPayload).toContain('activation_rate')
+
+    const delivery = await findTool(mounted.tools, 'reliability_verify').execute(
+      {},
+      execution(agent, 'reliability_verify'),
+    )
+    expect(delivery).toMatchObject({
+      status: 'delivery-certified',
+      outcomeStatus: 'observing',
+      terminal: { status: 'certified' },
+    })
+
+    const observed = await findTool(mounted.tools, 'reliability_outcome_observe').execute(
+      {},
+      execution(agent, 'reliability_outcome_observe'),
+    )
+    expect(observed).toMatchObject({
+      status: 'achieved',
+      observation: {
+        evaluation: {
+          status: 'achieved',
+          causalClaimPermitted: false,
+          target: { passed: true },
+        },
+      },
+      terminal: { status: 'achieved' },
+    })
+    const state = foldReliability(session.events)
+    expect(state.terminal?.status).toBe('certified')
+    expect(state.outcomeTerminal?.status).toBe('achieved')
+    expect(state.outcomeObservations).toHaveLength(1)
+    expect(state.outcomeTerminal?.receipt).toMatch(/^sha256:/)
   })
 
   it('fails closed after the configured repair budget', async () => {

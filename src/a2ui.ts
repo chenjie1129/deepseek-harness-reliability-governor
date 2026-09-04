@@ -1,4 +1,5 @@
 import type {
+  BusinessOutcomeProfileSummary,
   ReliabilityCheck,
   ReliabilityClaim,
   ReliabilityApprovedIntent,
@@ -48,6 +49,7 @@ export interface ReliabilityReviewProposal {
   authorship: ReliabilityContractAuthorship
   coverageAssessment: ReliabilityCoverageAssessment
   intent: ReliabilityApprovedIntent
+  businessOutcome?: BusinessOutcomeProfileSummary
   proposalReceipt: string
 }
 
@@ -112,6 +114,20 @@ function reviewData(proposal: ReliabilityReviewProposal): Record<string, unknown
     ...proposal.intent.nonGoals.map(value => `Non-goal: ${value}`),
     ...proposal.intent.ambiguities.map(value => `Ambiguity: ${value}`),
   ]
+  const businessOutcome = proposal.businessOutcome
+  const outcomeLines = businessOutcome === undefined ? [] : [
+    `Profile: ${businessOutcome.id}`,
+    `Goal: ${businessOutcome.description}`,
+    `Target: ${businessOutcome.target.metric} ${businessOutcome.target.operator} ${businessOutcome.target.value}`,
+    `Window: not before ${businessOutcome.notBeforeMs} ms; deadline ${businessOutcome.deadlineMs} ms`,
+    `Maximum data age: ${businessOutcome.maxDataAgeMs} ms`,
+    `Attribution: ${businessOutcome.attribution}`,
+    ...(businessOutcome.minimumSampleSize === undefined
+      ? []
+      : [`Minimum sample size: ${businessOutcome.minimumSampleSize}`]),
+    ...businessOutcome.guardrails.map(item =>
+      `Guardrail ${item.id}: ${item.metric} ${item.operator} ${item.value}`),
+  ]
   return {
     title: 'Review the evidence contract',
     explanation: 'The intent was approved separately. This approval authorizes only the exact claim, evidence, and repair-budget proposal; it does not certify the future outcome.',
@@ -125,6 +141,8 @@ function reviewData(proposal: ReliabilityReviewProposal): Record<string, unknown
       `${claim.id} [${claim.importance}; ${claim.verification}]: ${claim.statement}; checks: ${claim.checkIds.join(', ') || 'none'}; minimum independent sources: ${claim.minimumIndependentSources ?? 1}`),
     checksTitle: `Checks (${proposal.checks.length})`,
     checks: proposal.checks.map(check => compactCheck(check)),
+    outcomeTitle: businessOutcome === undefined ? '' : 'Business outcome',
+    outcome: outcomeLines,
     coverage: `Coverage: ${proposal.coverageAssessment.status}; critical ${proposal.coverageAssessment.coverage.critical.percent}%; weighted ${proposal.coverageAssessment.coverage.weighted.percent}%; independent sources ${proposal.coverageAssessment.evidence.independentSourceCount}; receipt ${proposal.coverageAssessment.receipt}`,
     warningTitle: `Coverage findings (${proposal.coverageAssessment.findings.length})`,
     warnings: proposal.coverageAssessment.findings.map(finding =>
@@ -178,12 +196,14 @@ export function createA2uiReviewEnvelope(proposal: ReliabilityReviewProposal): R
   const claimComponents = textComponents('claims', proposal.claims.map(claim => claim.statement))
   const checkComponents = textComponents('checks', proposal.checks.map(check => check.id), 'caption')
   const warningComponents = textComponents('warnings', proposal.coverageAssessment.findings.map(item => item.message), 'caption')
+  const outcomeComponents = textComponents('outcome', (data.outcome as string[]), 'caption')
   const contentChildren = [
     'title', 'explanation', 'intent-receipt', 'intent-title',
     ...intentComponents.map(component => component.id),
     'objective', 'contract-meta', 'claims-title',
     ...claimComponents.map(component => component.id),
     'checks-title', ...checkComponents.map(component => component.id), 'coverage',
+    ...(outcomeComponents.length === 0 ? [] : ['outcome-title', ...outcomeComponents.map(component => component.id)]),
     ...(warningComponents.length === 0 ? [] : ['warning-title', ...warningComponents.map(component => component.id)]),
     'receipt', 'feedback', 'actions',
   ]
@@ -211,6 +231,10 @@ export function createA2uiReviewEnvelope(proposal: ReliabilityReviewProposal): R
     { id: 'checks-title', component: 'Text', text: { path: '/checksTitle' }, variant: 'h5' },
     ...checkComponents,
     { id: 'coverage', component: 'Text', text: { path: '/coverage' }, variant: 'caption' },
+    ...(outcomeComponents.length === 0 ? [] : [
+      { id: 'outcome-title', component: 'Text', text: { path: '/outcomeTitle' }, variant: 'h5' },
+      ...outcomeComponents,
+    ]),
     ...(warningComponents.length === 0 ? [] : [
       { id: 'warning-title', component: 'Text', text: { path: '/warningTitle' }, variant: 'h5' },
       ...warningComponents,

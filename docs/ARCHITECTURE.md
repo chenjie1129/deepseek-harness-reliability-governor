@@ -52,7 +52,7 @@ The implementation is tested against the `0.1.1-rc.2` package floor and the clea
 - custom `SessionEventMap` records are lossless-JSON values and are folded from the durable log rather than mirrored in process memory;
 - configuration defaults are declared with Schemastery and manually bounded at plugin load;
 - no internal Harness module path, provider secret, or direct agent-loop patch is used;
-- on `0.1.2-alpha.1`, plugin load adds the seven required `reliability/*` types to the public process-wide `KNOWN_SESSION_EVENT_TYPES` set because that release's persistence reader fails closed but exposes no downstream registration service. Older builds skip this bridge; an incompatible future catalog fails plugin load.
+- on `0.1.2-alpha.1`, plugin load adds the ten required `reliability/*` types to the public process-wide `KNOWN_SESSION_EVENT_TYPES` set because that release's persistence reader fails closed but exposes no downstream registration service. Older builds skip this bridge; an incompatible future catalog fails plugin load.
 
 ## Durable event vocabulary
 
@@ -63,6 +63,9 @@ The implementation is tested against the `0.1.1-rc.2` package floor and the clea
 - `reliability/contract-draft` records a successful auxiliary draft, coverage assessment, route/prompt provenance, usage when available, and a receipt. It excludes auxiliary reasoning and does not duplicate raw context.
 - `reliability/intent-review` records a UI-backed decision over an exact interpreted-intent receipt. Optional feedback is represented only by its byte count and hash in this custom event.
 - `reliability/contract-review` records the evidence decision, the approved intent proposal receipt, the offered A2UI-with-native-fallback presentation, and its own receipt.
+- `reliability/outcome-contract` binds one deployment-controlled business goal and its pre-action baseline to the exact delivery contract.
+- `reliability/outcome-observation` records one privacy-minimized metric probe and its deterministic target, sample-size, freshness, and guardrail evaluation.
+- `reliability/outcome-terminal` records achieved/missed/inconclusive/expired independently from delivery certification.
 
 These are required events because they alter whether a session may truthfully settle. A runtime that cannot interpret them should refuse continuation rather than silently discard the contract.
 
@@ -120,6 +123,46 @@ The standard Harness tool log may already contain `reliability_draft` arguments,
 `reliability_begin_code` injects every deployment profile marked `required`; the model cannot remove them. `reliability_code_verify` accepts only a profile ID. Commands and arguments never enter its model-authored parameter schema.
 
 The verifier requires full sandbox enforcement, scrubs ambient secrets through Harness's subprocess provider, caps output in memory, and persists hashes rather than raw logs. Profile configuration remains trusted deployment policy. See [Trusted code verification](CODE_VERIFICATION.md).
+
+## Business outcome verification
+
+Delivery certification proves the approved artifact checks, not downstream business impact. An optional `businessOutcomeProfiles` entry defines a deployment-controlled read-only observer, allowed metrics, target, guardrails, minimum sample size, data-freshness bound, observation window, and attribution policy. The model can select only a profile ID. Its command and arguments remain outside tool output, while the public profile summary is bound into the evidence-review receipt.
+
+```yaml
+businessOutcomeMaxOutputBytes: 65536
+businessOutcomeProfiles:
+  - id: activation-rate
+    description: Activation rate reaches 20% without complaint-rate regression.
+    command: /opt/governor/bin/read-activation-metrics
+    args: ['--format', 'json']
+    timeoutMs: 120000
+    metrics:
+      - { name: activation_rate, unit: ratio }
+      - { name: complaint_rate, unit: ratio }
+    target: { id: activation, metric: activation_rate, operator: gte, value: 0.2 }
+    guardrails:
+      - { id: complaints, metric: complaint_rate, operator: lte, value: 0.02 }
+    minimumSampleSize: 100
+    maxDataAgeMs: 86400000
+    notBeforeMs: 3600000
+    deadlineMs: 604800000
+    attribution: correlational
+```
+
+The observer must emit exactly one bounded JSON object:
+
+```json
+{
+  "dataAsOf": 1700000000000,
+  "metrics": {
+    "activation_rate": 0.23,
+    "complaint_rate": 0.01
+  },
+  "sampleSize": 240
+}
+```
+
+Approval triggers a baseline observation before either contract activates. Delivery checks can then settle as `delivery-certified`; only `reliability_outcome_observe` may settle the separate business state as `achieved`, `missed`, `inconclusive`, or `expired`. A correlational profile can prove that the target was observed, but it never authorizes a causal claim. Commands should obtain credentials through a deployment-side broker or keychain; credentials and raw subprocess output are not persisted in Governor events.
 
 ## Bounded repair
 

@@ -65,6 +65,7 @@ function fallbackMarkdown(proposal: ReliabilityReviewProposal): string {
     authorship: proposal.authorship,
     coverageAssessment: proposal.coverageAssessment,
     approvedIntent: proposal.intent,
+    ...(proposal.businessOutcome === undefined ? {} : { businessOutcome: proposal.businessOutcome }),
     proposalReceipt: proposal.proposalReceipt,
   }, null, 2).split('\n').map(line => `    ${line}`).join('\n')
   return `### Review the evidence contract
