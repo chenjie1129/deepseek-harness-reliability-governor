@@ -108,6 +108,9 @@ const GOVERNOR_TOOL_NAMES = new Set([
   'reliability_abstain',
   'reliability_code_profiles',
   'reliability_code_verify',
+  'reliability_outcome_profiles',
+  'reliability_outcome_observe',
+  'reliability_outcome_status',
 ])
 
 function latestPotentialMutationSeq(events: readonly SessionEvent[], profile: string): number {

@@ -55,8 +55,14 @@ Receipts detect changes to the recorded payload. They are not signed, do not inc
 
 The governor evaluates and steers but does not automatically invoke tools. Harness does not currently provide a universal trusted declaration that every arbitrary tool action is read-only, workspace-reversible, or external/non-idempotent. A model-authored label would not establish that fact. Use snapshots or worktrees for mutable local tasks and do not permit automatic repair of irreversible actions without an authoritative policy layer or human confirmation.
 
+## Business outcomes are observed, not automatically attributed
+
+Business outcome profiles are deployment-controlled read-only observers. They can prove that configured metrics, sample-size requirements, freshness bounds, targets, and guardrails were observed inside the approved window. They do not make an uncontrolled before/after comparison causal. Only profiles configured with a direct or experiment attribution policy authorize a causal claim, and the deployment owner remains responsible for the validity of that policy and metric source.
+
+Outcome observation is manually triggered in this release. The governor persists `observing` state and deadlines but does not run a durable scheduler after the Harness process or session stops. A deployment requiring delayed unattended measurement must invoke `reliability_outcome_observe` through an external scheduler and preserve the same session.
+
 ## Custom event compatibility
 
 Governor events are required because dropping them would erase active enforcement state. Resume with the bundle installed. Export/migration across runtimes that do not understand the event vocabulary is not supported.
 
-Harness `0.1.2-alpha.1` introduced a fail-closed persistence catalog but did not yet provide an out-of-tree registration service. v0.7 therefore adds its seven required types to the exported process-wide catalog during plugin load. This is a version-adaptive compatibility bridge: older builds have no catalog and need no registration; a future incompatible catalog makes the plugin fail at load rather than write a session it cannot resume. The bridge depends on the current exported catalog remaining mutable and should be replaced when Harness publishes a supported downstream registration API.
+Harness `0.1.2-alpha.1` introduced a fail-closed persistence catalog but did not yet provide an out-of-tree registration service. The plugin therefore adds its ten required types to the exported process-wide catalog during plugin load. This is a version-adaptive compatibility bridge: older builds have no catalog and need no registration; a future incompatible catalog makes the plugin fail at load rather than write a session it cannot resume. The bridge depends on the current exported catalog remaining mutable and should be replaced when Harness publishes a supported downstream registration API.

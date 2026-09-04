@@ -228,6 +228,109 @@ export interface CodeVerificationResult {
   receipt: string
 }
 
+export type BusinessOutcomeOperator = 'gte' | 'lte' | 'eq' | 'delta-gte' | 'delta-lte'
+export type BusinessOutcomeAttribution = 'direct' | 'correlational' | 'experiment'
+
+export interface BusinessOutcomePredicate {
+  id: string
+  metric: string
+  operator: BusinessOutcomeOperator
+  value: number
+}
+
+/** Public, non-executable business-goal metadata exposed to the agent and review UI. */
+export interface BusinessOutcomeProfileSummary {
+  id: string
+  description: string
+  metrics: Array<{ name: string; unit: string }>
+  target: BusinessOutcomePredicate
+  guardrails: BusinessOutcomePredicate[]
+  minimumSampleSize?: number
+  maxDataAgeMs: number
+  notBeforeMs: number
+  deadlineMs: number
+  attribution: BusinessOutcomeAttribution
+  profileReceipt: string
+}
+
+export interface BusinessOutcomeSnapshot {
+  observedAt: number
+  dataAsOf: number
+  metrics: Record<string, number>
+  sampleSize?: number
+}
+
+/** Privacy-minimized result from one deployment-controlled outcome profile. */
+export interface BusinessOutcomeProbe {
+  version: 1
+  observationId: string
+  profile: string
+  profileReceipt: string
+  succeeded: boolean
+  failureKind?: 'exit' | 'timeout' | 'configuration' | 'infrastructure' | 'invalid-output'
+  exitCode: number | null
+  signal: string | null
+  durationMs: number
+  sandboxEnforcement?: 'full' | 'partial'
+  snapshot?: BusinessOutcomeSnapshot
+  stdout: { bytes: number; truncated: boolean; receipt: string }
+  stderr: { bytes: number; truncated: boolean; receipt: string }
+  receipt: string
+}
+
+/** Immutable business-goal contract bound to a delivery contract and its pre-action baseline. */
+export interface BusinessOutcomeContract {
+  version: 1
+  outcomeContractId: string
+  deliveryContractId: string
+  deliveryContractReceipt: string
+  profile: BusinessOutcomeProfileSummary
+  baseline: BusinessOutcomeProbe
+  startedAt: number
+  notBeforeAt: number
+  deadlineAt: number
+  receipt: string
+}
+
+export interface BusinessOutcomePredicateResult {
+  id: string
+  metric: string
+  operator: BusinessOutcomeOperator
+  expected: number
+  baseline?: number
+  observed?: number
+  comparedValue?: number
+  passed: boolean
+  evidence: string
+}
+
+export interface BusinessOutcomeEvaluation {
+  status: 'observing' | 'achieved' | 'missed' | 'inconclusive'
+  reason: string
+  causalClaimPermitted: boolean
+  target?: BusinessOutcomePredicateResult
+  guardrails: BusinessOutcomePredicateResult[]
+}
+
+/** One read-only observation and its deterministic evaluation. */
+export interface BusinessOutcomeObservation {
+  version: 1
+  outcomeContractId: string
+  probe: BusinessOutcomeProbe
+  evaluation: BusinessOutcomeEvaluation
+  receipt: string
+}
+
+/** Terminal business result. Delivery certification remains a separate event. */
+export interface BusinessOutcomeTerminal {
+  version: 1
+  outcomeContractId: string
+  status: 'achieved' | 'missed' | 'inconclusive' | 'expired'
+  reason: string
+  observationReceipt?: string
+  receipt: string
+}
+
 interface ReliabilityContractBase {
   contractId: string
   objective: string
@@ -325,6 +428,12 @@ declare module '@deepseek-ai/dsh-session/types' {
     'reliability/contract-review': ReliabilityContractReview
     /** Records one UI-backed decision over the model's explicit intent interpretation. */
     'reliability/intent-review': ReliabilityIntentReview
+    /** Records a deployment-authored business goal and its pre-action baseline. */
+    'reliability/outcome-contract': BusinessOutcomeContract
+    /** Records one read-only business metric observation and deterministic evaluation. */
+    'reliability/outcome-observation': BusinessOutcomeObservation
+    /** Records the terminal business outcome independently from delivery certification. */
+    'reliability/outcome-terminal': BusinessOutcomeTerminal
   }
 }
 
@@ -335,6 +444,9 @@ export interface FoldedReliabilityState {
   contract?: ReliabilityContract
   attempts: ReliabilityAttempt[]
   terminal?: ReliabilityTerminal
+  outcomeContract?: BusinessOutcomeContract
+  outcomeObservations: BusinessOutcomeObservation[]
+  outcomeTerminal?: BusinessOutcomeTerminal
 }
 
 /** Reconstruct the latest governor state from the durable session log. */
@@ -345,6 +457,9 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
   let contract: ReliabilityContract | undefined
   let attempts: ReliabilityAttempt[] = []
   let terminal: ReliabilityTerminal | undefined
+  let outcomeContract: BusinessOutcomeContract | undefined
+  let outcomeObservations: BusinessOutcomeObservation[] = []
+  let outcomeTerminal: BusinessOutcomeTerminal | undefined
 
   for (const event of events) {
     if (event.type === 'reliability/contract-draft') {
@@ -357,10 +472,24 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
       contract = event.data
       attempts = []
       terminal = undefined
+      outcomeContract = undefined
+      outcomeObservations = []
+      outcomeTerminal = undefined
     } else if (event.type === 'reliability/attempt' && event.data.contractId === contract?.contractId) {
       attempts.push(event.data)
     } else if (event.type === 'reliability/terminal' && event.data.contractId === contract?.contractId) {
       terminal = event.data
+    } else if (event.type === 'reliability/outcome-contract'
+      && event.data.deliveryContractId === contract?.contractId) {
+      outcomeContract = event.data
+      outcomeObservations = []
+      outcomeTerminal = undefined
+    } else if (event.type === 'reliability/outcome-observation'
+      && event.data.outcomeContractId === outcomeContract?.outcomeContractId) {
+      outcomeObservations.push(event.data)
+    } else if (event.type === 'reliability/outcome-terminal'
+      && event.data.outcomeContractId === outcomeContract?.outcomeContractId) {
+      outcomeTerminal = event.data
     }
   }
 
@@ -371,5 +500,8 @@ export function foldReliability(events: readonly SessionEvent[]): FoldedReliabil
     ...(contract === undefined ? {} : { contract }),
     attempts,
     ...(terminal === undefined ? {} : { terminal }),
+    ...(outcomeContract === undefined ? {} : { outcomeContract }),
+    outcomeObservations,
+    ...(outcomeTerminal === undefined ? {} : { outcomeTerminal }),
   }
 }

@@ -12,6 +12,9 @@ export const RELIABILITY_SESSION_EVENT_TYPES = [
   'reliability/contract-draft',
   'reliability/contract-review',
   'reliability/intent-review',
+  'reliability/outcome-contract',
+  'reliability/outcome-observation',
+  'reliability/outcome-terminal',
 ] as const
 
 interface MutableEventTypeRegistry {
